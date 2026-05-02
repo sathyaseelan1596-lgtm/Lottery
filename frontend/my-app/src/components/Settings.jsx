@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import "./Settings.css";
-
-const API = "http://localhost:5000";
+import API from "../config";
 
 export default function SiteSettings({ onClose }) {
   const [loading, setLoading] = useState(true);

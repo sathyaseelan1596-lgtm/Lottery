@@ -7,6 +7,7 @@ import "./App.css";
 import "./components/Lottery.css";
 import axios from "axios";
 import SiteSettings from "./components/Settings";
+import API from "./config";
 
 export default function App() {
   const {
@@ -31,7 +32,7 @@ export default function App() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await axios.get("https://lottery-5mbv.onrender.com/api/settings");
+        const response = await axios.get(`${API}/api/settings`);
         if (response.data) {
           setSiteSettings(response.data);
         }
