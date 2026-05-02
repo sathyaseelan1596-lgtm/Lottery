@@ -14,13 +14,31 @@ const generateToken = (id, username) => {
 
 // ─────────────────────────────────────────
 // @route   POST /api/auth/register
-// @desc    Register a new admin (disable after first use!)
-// @access  Public (lock this down after setup)
+// @desc    Register a new admin (secret key required)
+// @access  Private (secret key)
 // ─────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, secretKey } = req.body;
 
+    // ✅ Validate secret key first
+    const REGISTER_SECRET = process.env.REGISTER_SECRET;
+
+    if (!REGISTER_SECRET) {
+      return res.status(500).json({
+        success: false,
+        error: 'Registration is not configured properly. Set REGISTER_SECRET in .env'
+      });
+    }
+
+    if (!secretKey || secretKey !== REGISTER_SECRET) {
+      return res.status(403).json({
+        success: false,
+        error: 'Invalid registration key. Access denied.'
+      });
+    }
+
+    // ✅ Validate fields
     if (!username || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -35,7 +53,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Check if admin already exists
+    // ✅ Check if admin already exists
     const existingAdmin = await Admin.findOne({ username });
     if (existingAdmin) {
       return res.status(400).json({ 
@@ -44,7 +62,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Create admin
+    // ✅ Create admin
     const admin = await Admin.create({ username, password });
     const token = generateToken(admin._id, admin.username);
 
