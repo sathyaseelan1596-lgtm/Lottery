@@ -31,7 +31,7 @@ export default function App() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/settings");
+        const response = await axios.get("https://lottery-5mbv.onrender.com/api/settings");
         if (response.data) {
           setSiteSettings(response.data);
         }

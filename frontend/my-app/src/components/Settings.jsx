@@ -19,6 +19,7 @@ export default function SiteSettings({ onClose }) {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [secretKey, setSecretKey] = useState("");
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -114,6 +115,7 @@ export default function SiteSettings({ onClose }) {
       const res = await axios.post(`${API}/api/auth/register`, {
         username,
         password,
+        secretKey,
       });
 
       const receivedToken = res.data.token;
@@ -135,6 +137,7 @@ export default function SiteSettings({ onClose }) {
     setIsLoggedIn(false);
     setUsername("");
     setPassword("");
+    setSecretKey("");
   };
 
   // ── Handle input change ──
@@ -294,6 +297,20 @@ export default function SiteSettings({ onClose }) {
                     </span>
                   )}
                 </div>
+                <div className="ss-form-group">
+      <label>🗝️ Registration Key</label>
+      <div className="ss-input-wrap">
+        <input
+          type={showPassword ? "text" : "password"}
+          placeholder="Enter your registration secret key"
+          value={secretKey}
+          onChange={(e) => setSecretKey(e.target.value)}
+        />
+      </div>
+      <span className="ss-hint">
+        Contact the system administrator for the registration key
+      </span>
+    </div>
                 <button
                   type="submit"
                   className="ss-btn ss-btn-primary"
