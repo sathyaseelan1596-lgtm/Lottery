@@ -4,8 +4,8 @@ pragma solidity ^0.8.20;
 import "../lib/forge-std/src/Script.sol";
 import "../src/Lottery.sol";
 import "../src/RandomNumberGenerator.sol";
-import "../src/Token.sol";
 import "../src/VRFCoordinator.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DeployLottery is Script {
     function run() external {
@@ -13,6 +13,7 @@ contract DeployLottery is Script {
         // address vrfAddress = 0x22f44f27A25053C9921037d6CDb5EDF9C05d567D;
         // address uniSwap = 0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008;
         address linkAddress = 0x84b9B910527Ad5C03A9Ca831909E21e236EA7b06;
+        address cake = 0x4FA10b7721d1E98F5eD992382cA59890Cb70F5C5;
 
         bytes32 keyHash = 0xd4bb89654db74673a187bd804519e65e3f71a52bc55f11da7601a13dcf505314;
         uint256 fee = 0.005 * 10**18;
@@ -22,8 +23,6 @@ contract DeployLottery is Script {
 
         // Start broadcasting transactions
         vm.startBroadcast(deployerPrivateKey);
-
-        MockERC20 cake = new MockERC20();
 
         MockVRFCoordinatorSimple vrf = new MockVRFCoordinatorSimple();
 
@@ -35,7 +34,7 @@ contract DeployLottery is Script {
         number.setFee(fee);
         number.setLotteryAddress(address(lottery));
 
-        cake.approve(address(lottery), 100000*10**18);
+        IERC20(cake).approve(address(lottery), 100000 * 10**18);
 
         // Configure Lottery
         address deployer = vm.addr(deployerPrivateKey);
@@ -45,7 +44,7 @@ contract DeployLottery is Script {
         vm.stopBroadcast();
     }
 }
-// $ forge script script/Lottery.s.sol:DeployLottery \
+// forge script script/Lottery.s.sol:DeployLottery \
 // --rpc-url sepolia \
 // --broadcast \                   
 // --verify

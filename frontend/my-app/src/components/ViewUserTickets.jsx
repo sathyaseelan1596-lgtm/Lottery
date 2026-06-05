@@ -74,7 +74,6 @@ export default function MyTickets({ contract, account }) {
     }
   };
 
-  // ── Derived ──
   const hasDrawn = finalNumber && finalNumber !== 0;
   const isClaimable = lotteryStatus === 3;
   const winningDigits = hasDrawn
@@ -87,7 +86,6 @@ export default function MyTickets({ contract, account }) {
 
   const totalClaimed = statuses.filter(Boolean).length;
 
-  // ── Animation Variants ──
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -136,14 +134,12 @@ export default function MyTickets({ contract, account }) {
         }}
       />
 
-      {/* ── CARD ── */}
       <motion.div
         style={styles.card}
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        {/* Header */}
         <motion.div
           style={styles.cardHeader}
           initial={{ opacity: 0, x: -15 }}
@@ -171,7 +167,6 @@ export default function MyTickets({ contract, account }) {
           Enter a lottery round ID to view your tickets and match results.
         </motion.p>
 
-        {/* Input Row */}
         <motion.div
           style={styles.inputRow}
           initial={{ opacity: 0, y: 10 }}
@@ -205,7 +200,6 @@ export default function MyTickets({ contract, account }) {
           </motion.button>
         </motion.div>
 
-        {/* View Button */}
         <motion.button
           onClick={fetchTickets}
           disabled={loading}
@@ -236,7 +230,6 @@ export default function MyTickets({ contract, account }) {
         </motion.button>
       </motion.div>
 
-      {/* ── MODAL ── */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -255,7 +248,6 @@ export default function MyTickets({ contract, account }) {
               transition={{ duration: 0.38, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
               <motion.div
                 style={styles.modalHeader}
                 initial={{ opacity: 0, y: -10 }}
@@ -276,7 +268,6 @@ export default function MyTickets({ contract, account }) {
                 </motion.button>
               </motion.div>
 
-              {/* Badges */}
               <motion.div
                 style={styles.badgeRow}
                 initial={{ opacity: 0, y: 8 }}
@@ -311,7 +302,6 @@ export default function MyTickets({ contract, account }) {
                 </AnimatePresence>
               </motion.div>
 
-              {/* Winning Number */}
               <motion.div
                 style={styles.winningBox}
                 initial={{ opacity: 0, scale: 0.93 }}
@@ -367,7 +357,6 @@ export default function MyTickets({ contract, account }) {
                 </AnimatePresence>
               </motion.div>
 
-              {/* Ticket List */}
               <motion.div
                 style={styles.ticketList}
                 variants={containerVariants}
@@ -466,7 +455,6 @@ export default function MyTickets({ contract, account }) {
                             })}
                           </div>
 
-                          {/* Status badge */}
                           <AnimatePresence mode="wait">
                             {claimed ? (
                               <motion.span
@@ -502,7 +490,6 @@ export default function MyTickets({ contract, account }) {
                           </AnimatePresence>
                         </div>
 
-                        {/* Match info */}
                         <AnimatePresence>
                           {hasDrawn && (
                             <motion.div
@@ -531,7 +518,6 @@ export default function MyTickets({ contract, account }) {
                 )}
               </motion.div>
 
-              {/* Close Button */}
               <motion.button
                 onClick={() => setShowModal(false)}
                 style={styles.cancelBtn}
@@ -554,9 +540,6 @@ export default function MyTickets({ contract, account }) {
   );
 }
 
-// ==============================
-// 🎨 STYLES
-// ==============================
 const styles = {
   // CARD
   card: {
@@ -595,7 +578,6 @@ const styles = {
     lineHeight: "1.5",
   },
 
-  // INPUT ROW
   inputRow: {
     display: "flex",
     gap: "10px",
@@ -623,7 +605,6 @@ const styles = {
     whiteSpace: "nowrap",
   },
 
-  // VIEW BUTTON
   viewBtn: {
     width: "100%",
     padding: "13px",
@@ -636,7 +617,6 @@ const styles = {
     cursor: "pointer",
   },
 
-  // OVERLAY
   overlay: {
     position: "fixed",
     top: 0,
@@ -651,7 +631,6 @@ const styles = {
     zIndex: 9999,
   },
 
-  // MODAL
   modal: {
     background: "#12121f",
     border: "1px solid rgba(255,255,255,0.1)",
@@ -687,7 +666,6 @@ const styles = {
     padding: "4px 10px",
   },
 
-  // BADGES
   badgeRow: {
     display: "flex",
     gap: "8px",
@@ -718,7 +696,6 @@ const styles = {
     border: "1px solid rgba(255,152,0,0.3)",
   },
 
-  // WINNING NUMBER
   winningBox: {
     background: "rgba(255,255,255,0.03)",
     border: "1px solid rgba(255,255,255,0.07)",
@@ -758,7 +735,6 @@ const styles = {
     color: "#555",
   },
 
-  // TICKET LIST
   ticketList: {
     display: "flex",
     flexDirection: "column",
@@ -767,7 +743,6 @@ const styles = {
     overflowY: "auto",
   },
 
-  // EMPTY STATE
   emptyState: {
     textAlign: "center",
     padding: "40px 20px",
@@ -783,7 +758,6 @@ const styles = {
     margin: 0,
   },
 
-  // TICKET CARD
   ticketCard: {
     background: "rgba(255,255,255,0.03)",
     border: "1px solid",
@@ -816,7 +790,6 @@ const styles = {
     fontWeight: "700",
   },
 
-  // TICKET BADGES
   claimedBadge: {
     fontSize: "11px",
     color: "#00e676",
@@ -848,7 +821,6 @@ const styles = {
     whiteSpace: "nowrap",
   },
 
-  // TICKET BOTTOM
   ticketBottom: {
     paddingTop: "4px",
     borderTop: "1px solid rgba(255,255,255,0.05)",
@@ -864,7 +836,6 @@ const styles = {
     color: "#555",
   },
 
-  // CANCEL BUTTON
   cancelBtn: {
     width: "100%",
     padding: "12px",

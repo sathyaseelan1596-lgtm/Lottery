@@ -56,7 +56,6 @@ const generateRandomTickets = (count) => {
   return Array.from(tickets);
 };
 
-// ── TimerBadge ──────────────────────────────────────────────
 const TimerBadge = ({ timeLeft, isEnded, secondsLeft }) => {
   const isUrgent = !isEnded && secondsLeft > 0 && secondsLeft < 60;
   return (
@@ -97,7 +96,6 @@ const TimerBadge = ({ timeLeft, isEnded, secondsLeft }) => {
   );
 };
 
-// ── CostRow ─────────────────────────────────────────────────
 const CostRow = ({ label, value, highlight, index }) => (
   <motion.div
     style={styles.costRow}
@@ -118,7 +116,6 @@ const CostRow = ({ label, value, highlight, index }) => (
   </motion.div>
 );
 
-// ── TicketsViewerModal ───────────────────────────────────────
 const TicketsViewerModal = ({ tickets, onClose, onReroll, disabled }) => {
   return (
     <AnimatePresence>
@@ -244,24 +241,16 @@ const TicketsViewerModal = ({ tickets, onClose, onReroll, disabled }) => {
   );
 };
 
-// ============================================================
-// 🏆 MAIN COMPONENT
-// ============================================================
 export default function BuyTickets({ contract }) {
-  // ── Manual buy state ──
   const [showModal, setShowModal] = useState(false);
   const [numbers, setNumbers] = useState("");
   const [loading, setLoading] = useState(false);
   const [ticketCount, setTicketCount] = useState(0);
-
-  // ── Instant buy state ──
   const [showInstantModal, setShowInstantModal] = useState(false);
   const [instantCount, setInstantCount] = useState(5);
   const [instantTickets, setInstantTickets] = useState([]);
   const [instantLoading, setInstantLoading] = useState(false);
   const [showTicketViewer, setShowTicketViewer] = useState(false);
-
-  // ── Shared state ──
   const [lotteryId, setLotteryId] = useState(null);
   const [endTime, setEndTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState("");
@@ -355,7 +344,7 @@ export default function BuyTickets({ contract }) {
         ["function approve(address spender, uint256 amount) external returns (bool)"],
         signer
       );
-      toast.loading("✅ Approving CAKE spend...", { id: toastId });
+      toast.loading("Approving Luck spend...", { id: toastId });
       await (await cakeToken.approve(contract.target, totalCost)).wait();
       toast.loading("⛓️ Buying tickets on-chain...", { id: toastId });
       await (await contract.buyTickets(lotteryId, ticketNumbers)).wait();
@@ -405,9 +394,9 @@ export default function BuyTickets({ contract }) {
     }
   };
 
-  const pricePerTicket = ticketPrice ? Number(ethers.formatEther(ticketPrice)) : 0;
-  const manualEstTotal = ticketPrice && ticketCount > 0 ? (pricePerTicket * ticketCount).toFixed(2) : null;
-  const instantEstTotal = ticketPrice && instantCount > 0 ? (pricePerTicket * instantCount).toFixed(2) : null;
+  const pricePerTicketDisplay = "1 USDC";
+  const manualEstTotal = ticketCount > 0 ? `${(ticketCount * 1).toFixed(2)} USDC` : null;
+  const instantEstTotal = instantCount > 0 ? `${(instantCount * 1).toFixed(2)} USDC` : null;
 
   return (
     <>
@@ -428,7 +417,6 @@ export default function BuyTickets({ contract }) {
         }}
       />
 
-      {/* ── CARDS ─────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         {isEnded ? (
           <motion.div
@@ -493,7 +481,7 @@ export default function BuyTickets({ contract }) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.3 }}
                   >
-                    💰 {ethers.formatEther(ticketPrice)} CAKE / ticket
+                    💰 {ethers.formatUnits(ticketPrice, 6)} Luck / ticket
                   </motion.div>
                 )}
                 <motion.div
@@ -558,7 +546,7 @@ export default function BuyTickets({ contract }) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.3 }}
                   >
-                    💰 {ethers.formatEther(ticketPrice)} CAKE / ticket
+                    💰 {ethers.formatUnits(ticketPrice, 6)} Luck / ticket
                   </motion.div>
                 )}
                 <motion.div
@@ -574,9 +562,6 @@ export default function BuyTickets({ contract }) {
         )}
       </AnimatePresence>
 
-      {/* ══════════════════════════════════════════════════════
-          MANUAL BUY MODAL
-      ══════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -669,9 +654,9 @@ export default function BuyTickets({ contract }) {
                     transition={{ duration: 0.3 }}
                   >
                     <CostRow index={0} label="Tickets" value={ticketCount} />
-                    <CostRow index={1} label="Price per ticket" value={`${ethers.formatEther(ticketPrice)} CAKE`} />
+                    <CostRow index={1} label="Price per ticket" value={`${ethers.formatUnits(ticketPrice, 6)} Luck`} />
                     <motion.div style={styles.costDivider} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.15 }} />
-                    <CostRow index={2} label="Est. Total" value={`~${manualEstTotal} CAKE`} highlight />
+                    <CostRow index={2} label="Est. Total" value={`~${manualEstTotal} Luck`} highlight />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -712,9 +697,6 @@ export default function BuyTickets({ contract }) {
         )}
       </AnimatePresence>
 
-      {/* ══════════════════════════════════════════════════════
-          INSTANT BUY MODAL
-      ══════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showInstantModal && (
           <motion.div
@@ -867,9 +849,9 @@ export default function BuyTickets({ contract }) {
                     transition={{ duration: 0.3 }}
                   >
                     <CostRow index={0} label="Tickets" value={instantCount} />
-                    <CostRow index={1} label="Price per ticket" value={`${ethers.formatEther(ticketPrice)} CAKE`} />
+                    <CostRow index={1} label="Price per ticket" value={`${ethers.formatUnits(ticketPrice, 6)} Luck`} />
                     <motion.div style={styles.costDivider} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.15 }} />
-                    <CostRow index={2} label="Est. Total" value={`~${instantEstTotal} CAKE`} highlight />
+                    <CostRow index={2} label="Est. Total" value={`~${instantEstTotal} Luck`} highlight />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -916,9 +898,6 @@ export default function BuyTickets({ contract }) {
         )}
       </AnimatePresence>
 
-      {/* ══════════════════════════════════════════════════════
-          TICKETS VIEWER POPUP
-      ══════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showTicketViewer && (
           <TicketsViewerModal
@@ -933,9 +912,6 @@ export default function BuyTickets({ contract }) {
   );
 }
 
-// ============================================================
-// 🎨 STYLES
-// ============================================================
 const styles = {
   cardsRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
 
@@ -1179,9 +1155,6 @@ const styles = {
     cursor: "pointer",
   },
 
-  // ══════════════════════════════════════════════════════
-  // TICKET VIEWER MODAL STYLES
-  // ══════════════════════════════════════════════════════
   ticketViewerOverlay: {
     position: "fixed",
     inset: 0,
@@ -1190,7 +1163,7 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 10000, // above instant modal
+    zIndex: 10000,
     padding: "16px",
   },
   ticketViewerModal: {

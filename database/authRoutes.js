@@ -4,24 +4,17 @@ import Admin from './schema/AdminSchema.js';
 import protect from './middleware.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-// Helper to generate token
 const generateToken = (id, username) => {
   return jwt.sign({ id, username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
-// ─────────────────────────────────────────
-// @route   POST /api/auth/register
-// @desc    Register a new admin (secret key required)
-// @access  Private (secret key)
-// ─────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
     const { username, password, secretKey } = req.body;
 
-    // ✅ Validate secret key first
     const REGISTER_SECRET = process.env.REGISTER_SECRET;
 
     if (!REGISTER_SECRET) {
@@ -38,7 +31,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // ✅ Validate fields
     if (!username || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -53,7 +45,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // ✅ Check if admin already exists
     const existingAdmin = await Admin.findOne({ username });
     if (existingAdmin) {
       return res.status(400).json({ 
@@ -62,7 +53,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // ✅ Create admin
     const admin = await Admin.create({ username, password });
     const token = generateToken(admin._id, admin.username);
 
@@ -79,11 +69,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────
-// @route   POST /api/auth/login
-// @desc    Login and get token
-// @access  Public
-// ─────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -95,7 +80,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find admin
     const admin = await Admin.findOne({ username });
     if (!admin) {
       return res.status(401).json({ 
@@ -104,7 +88,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check password
     const isMatch = await admin.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ 
@@ -128,11 +111,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────
-// @route   GET /api/auth/me
-// @desc    Get current logged-in admin
-// @access  Protected
-// ─────────────────────────────────────────
 router.get('/me', protect, async (req, res) => {
   try {
     const admin = await Admin.findById(req.admin.id).select('-password');

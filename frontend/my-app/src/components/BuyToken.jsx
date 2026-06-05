@@ -1,1414 +1,784 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ethers } from "ethers";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
-const PAIR_ADDRESS   = "0x5C5F783b8013dF12a9aDf994c41A6891295b099c";
-const ROUTER_ADDRESS = "0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008";
-const WETH = "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9";
-const MTK  = "0x19822e1B46e5a438a95691eF51B1c2a34C153468";
+const POOL_ADDRESS   = "0x813D0cE4d144500B9D668e718210322E4890F25C";
+const SWAP_ROUTER_ADDRESS = "0xAd4B479a199a44424888601D3B2F92453010e35D";
+const USDC = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f";
+const yvUSDC  = "0x4fa10b7721d1e98f5ed992382ca59890cb70f5c5";
 
-const pairABI = [
-  {
-    inputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "spender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-    ],
-    name: "Approval",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "sender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount0",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount1",
-        type: "uint256",
-      },
-      { indexed: true, internalType: "address", name: "to", type: "address" },
-    ],
-    name: "Burn",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "sender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount0",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount1",
-        type: "uint256",
-      },
-    ],
-    name: "Mint",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "sender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount0In",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount1In",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount0Out",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount1Out",
-        type: "uint256",
-      },
-      { indexed: true, internalType: "address", name: "to", type: "address" },
-    ],
-    name: "Swap",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint112",
-        name: "reserve0",
-        type: "uint112",
-      },
-      {
-        indexed: false,
-        internalType: "uint112",
-        name: "reserve1",
-        type: "uint112",
-      },
-    ],
-    name: "Sync",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "from", type: "address" },
-      { indexed: true, internalType: "address", name: "to", type: "address" },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-    ],
-    name: "Transfer",
-    type: "event",
-  },
-  { payable: true, stateMutability: "payable", type: "fallback" },
-  {
-    constant: true,
-    inputs: [],
-    name: "DOMAIN_SEPARATOR",
-    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "MINIMUM_LIQUIDITY",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "PERMIT_TYPEHASH",
-    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [
-      { internalType: "address", name: "", type: "address" },
-      { internalType: "address", name: "", type: "address" },
-    ],
-    name: "allowance",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { internalType: "address", name: "spender", type: "address" },
-      { internalType: "uint256", name: "value", type: "uint256" },
-    ],
-    name: "approve",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [{ internalType: "address", name: "to", type: "address" }],
-    name: "burn",
-    outputs: [
-      { internalType: "uint256", name: "amount0", type: "uint256" },
-      { internalType: "uint256", name: "amount1", type: "uint256" },
-    ],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "decimals",
-    outputs: [{ internalType: "uint8", name: "", type: "uint8" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "factory",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "getReserves",
-    outputs: [
-      { internalType: "uint112", name: "_reserve0", type: "uint112" },
-      { internalType: "uint112", name: "_reserve1", type: "uint112" },
-      { internalType: "uint32", name: "_blockTimestampLast", type: "uint32" },
-    ],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { internalType: "address", name: "_token0", type: "address" },
-      { internalType: "address", name: "_token1", type: "address" },
-    ],
-    name: "initialize",
-    outputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "kLast",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [{ internalType: "address", name: "to", type: "address" }],
-    name: "mint",
-    outputs: [{ internalType: "uint256", name: "liquidity", type: "uint256" }],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "name",
-    outputs: [{ internalType: "string", name: "", type: "string" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "nonces",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { internalType: "address", name: "owner", type: "address" },
-      { internalType: "address", name: "spender", type: "address" },
-      { internalType: "uint256", name: "value", type: "uint256" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-      { internalType: "uint8", name: "v", type: "uint8" },
-      { internalType: "bytes32", name: "r", type: "bytes32" },
-      { internalType: "bytes32", name: "s", type: "bytes32" },
-    ],
-    name: "permit",
-    outputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "price0CumulativeLast",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "price1CumulativeLast",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [{ internalType: "address", name: "to", type: "address" }],
-    name: "skim",
-    outputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { internalType: "uint256", name: "amount0Out", type: "uint256" },
-      { internalType: "uint256", name: "amount1Out", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "bytes", name: "data", type: "bytes" },
-    ],
-    name: "swap",
-    outputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "symbol",
-    outputs: [{ internalType: "string", name: "", type: "string" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [],
-    name: "sync",
-    outputs: [],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "token0",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "token1",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "totalSupply",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    payable: false,
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "value", type: "uint256" },
-    ],
-    name: "transfer",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    constant: false,
-    inputs: [
-      { internalType: "address", name: "from", type: "address" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "value", type: "uint256" },
-    ],
-    name: "transferFrom",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    payable: false,
-    stateMutability: "nonpayable",
-    type: "function",
-  },
+const POOL_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"int24","name":"tickLower","type":"int24"},{"indexed":true,"internalType":"int24","name":"tickUpper","type":"int24"},{"indexed":false,"internalType":"uint128","name":"amount","type":"uint128"},{"indexed":false,"internalType":"uint256","name":"amount0","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"amount1","type":"uint256"}],"name":"Burn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"address","name":"recipient","type":"address"},{"indexed":true,"internalType":"int24","name":"tickLower","type":"int24"},{"indexed":true,"internalType":"int24","name":"tickUpper","type":"int24"},{"indexed":false,"internalType":"uint128","name":"amount0","type":"uint128"},{"indexed":false,"internalType":"uint128","name":"amount1","type":"uint128"}],"name":"Collect","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"sender","type":"address"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint128","name":"amount0","type":"uint128"},{"indexed":false,"internalType":"uint128","name":"amount1","type":"uint128"}],"name":"CollectProtocol","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"sender","type":"address"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount0","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"amount1","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"paid0","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"paid1","type":"uint256"}],"name":"Flash","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint16","name":"observationCardinalityNextOld","type":"uint16"},{"indexed":false,"internalType":"uint16","name":"observationCardinalityNextNew","type":"uint16"}],"name":"IncreaseObservationCardinalityNext","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint160","name":"sqrtPriceX96","type":"uint160"},{"indexed":false,"internalType":"int24","name":"tick","type":"int24"}],"name":"Initialize","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"sender","type":"address"},{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"int24","name":"tickLower","type":"int24"},{"indexed":true,"internalType":"int24","name":"tickUpper","type":"int24"},{"indexed":false,"internalType":"uint128","name":"amount","type":"uint128"},{"indexed":false,"internalType":"uint256","name":"amount0","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"amount1","type":"uint256"}],"name":"Mint","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint8","name":"feeProtocol0Old","type":"uint8"},{"indexed":false,"internalType":"uint8","name":"feeProtocol1Old","type":"uint8"},{"indexed":false,"internalType":"uint8","name":"feeProtocol0New","type":"uint8"},{"indexed":false,"internalType":"uint8","name":"feeProtocol1New","type":"uint8"}],"name":"SetFeeProtocol","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"sender","type":"address"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"int256","name":"amount0","type":"int256"},{"indexed":false,"internalType":"int256","name":"amount1","type":"int256"},{"indexed":false,"internalType":"uint160","name":"sqrtPriceX96","type":"uint160"},{"indexed":false,"internalType":"uint128","name":"liquidity","type":"uint128"},{"indexed":false,"internalType":"int24","name":"tick","type":"int24"}],"name":"Swap","type":"event"},{"inputs":[{"internalType":"int24","name":"tickLower","type":"int24"},{"internalType":"int24","name":"tickUpper","type":"int24"},{"internalType":"uint128","name":"amount","type":"uint128"}],"name":"burn","outputs":[{"internalType":"uint256","name":"amount0","type":"uint256"},{"internalType":"uint256","name":"amount1","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"int24","name":"tickLower","type":"int24"},{"internalType":"int24","name":"tickUpper","type":"int24"},{"internalType":"uint128","name":"amount0Requested","type":"uint128"},{"internalType":"uint128","name":"amount1Requested","type":"uint128"}],"name":"collect","outputs":[{"internalType":"uint128","name":"amount0","type":"uint128"},{"internalType":"uint128","name":"amount1","type":"uint128"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint128","name":"amount0Requested","type":"uint128"},{"internalType":"uint128","name":"amount1Requested","type":"uint128"}],"name":"collectProtocol","outputs":[{"internalType":"uint128","name":"amount0","type":"uint128"},{"internalType":"uint128","name":"amount1","type":"uint128"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"factory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fee","outputs":[{"internalType":"uint24","name":"","type":"uint24"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"feeGrowthGlobal0X128","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"feeGrowthGlobal1X128","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"amount0","type":"uint256"},{"internalType":"uint256","name":"amount1","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"flash","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint16","name":"observationCardinalityNext","type":"uint16"}],"name":"increaseObservationCardinalityNext","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint160","name":"sqrtPriceX96","type":"uint160"}],"name":"initialize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"liquidity","outputs":[{"internalType":"uint128","name":"","type":"uint128"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxLiquidityPerTick","outputs":[{"internalType":"uint128","name":"","type":"uint128"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"int24","name":"tickLower","type":"int24"},{"internalType":"int24","name":"tickUpper","type":"int24"},{"internalType":"uint128","name":"amount","type":"uint128"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"mint","outputs":[{"internalType":"uint256","name":"amount0","type":"uint256"},{"internalType":"uint256","name":"amount1","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"observations","outputs":[{"internalType":"uint32","name":"blockTimestamp","type":"uint32"},{"internalType":"int56","name":"tickCumulative","type":"int56"},{"internalType":"uint160","name":"secondsPerLiquidityCumulativeX128","type":"uint160"},{"internalType":"bool","name":"initialized","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint32[]","name":"secondsAgos","type":"uint32[]"}],"name":"observe","outputs":[{"internalType":"int56[]","name":"tickCumulatives","type":"int56[]"},{"internalType":"uint160[]","name":"secondsPerLiquidityCumulativeX128s","type":"uint160[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"positions","outputs":[{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"feeGrowthInside0LastX128","type":"uint256"},{"internalType":"uint256","name":"feeGrowthInside1LastX128","type":"uint256"},{"internalType":"uint128","name":"tokensOwed0","type":"uint128"},{"internalType":"uint128","name":"tokensOwed1","type":"uint128"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"protocolFees","outputs":[{"internalType":"uint128","name":"token0","type":"uint128"},{"internalType":"uint128","name":"token1","type":"uint128"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint8","name":"feeProtocol0","type":"uint8"},{"internalType":"uint8","name":"feeProtocol1","type":"uint8"}],"name":"setFeeProtocol","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"slot0","outputs":[{"internalType":"uint160","name":"sqrtPriceX96","type":"uint160"},{"internalType":"int24","name":"tick","type":"int24"},{"internalType":"uint16","name":"observationIndex","type":"uint16"},{"internalType":"uint16","name":"observationCardinality","type":"uint16"},{"internalType":"uint16","name":"observationCardinalityNext","type":"uint16"},{"internalType":"uint8","name":"feeProtocol","type":"uint8"},{"internalType":"bool","name":"unlocked","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"int24","name":"tickLower","type":"int24"},{"internalType":"int24","name":"tickUpper","type":"int24"}],"name":"snapshotCumulativesInside","outputs":[{"internalType":"int56","name":"tickCumulativeInside","type":"int56"},{"internalType":"uint160","name":"secondsPerLiquidityInsideX128","type":"uint160"},{"internalType":"uint32","name":"secondsInside","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"bool","name":"zeroForOne","type":"bool"},{"internalType":"int256","name":"amountSpecified","type":"int256"},{"internalType":"uint160","name":"sqrtPriceLimitX96","type":"uint160"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"swap","outputs":[{"internalType":"int256","name":"amount0","type":"int256"},{"internalType":"int256","name":"amount1","type":"int256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"int16","name":"","type":"int16"}],"name":"tickBitmap","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"tickSpacing","outputs":[{"internalType":"int24","name":"","type":"int24"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"int24","name":"","type":"int24"}],"name":"ticks","outputs":[{"internalType":"uint128","name":"liquidityGross","type":"uint128"},{"internalType":"int128","name":"liquidityNet","type":"int128"},{"internalType":"uint256","name":"feeGrowthOutside0X128","type":"uint256"},{"internalType":"uint256","name":"feeGrowthOutside1X128","type":"uint256"},{"internalType":"int56","name":"tickCumulativeOutside","type":"int56"},{"internalType":"uint160","name":"secondsPerLiquidityOutsideX128","type":"uint160"},{"internalType":"uint32","name":"secondsOutside","type":"uint32"},{"internalType":"bool","name":"initialized","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"token0","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"token1","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
 ];
 
-const routerABI = [
-  {
-    inputs: [
-      { internalType: "address", name: "_factory", type: "address" },
-      { internalType: "address", name: "_WETH", type: "address" },
-    ],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    inputs: [],
-    name: "WETH",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenA", type: "address" },
-      { internalType: "address", name: "tokenB", type: "address" },
-      { internalType: "uint256", name: "amountADesired", type: "uint256" },
-      { internalType: "uint256", name: "amountBDesired", type: "uint256" },
-      { internalType: "uint256", name: "amountAMin", type: "uint256" },
-      { internalType: "uint256", name: "amountBMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "addLiquidity",
-    outputs: [
-      { internalType: "uint256", name: "amountA", type: "uint256" },
-      { internalType: "uint256", name: "amountB", type: "uint256" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "amountTokenDesired", type: "uint256" },
-      { internalType: "uint256", name: "amountTokenMin", type: "uint256" },
-      { internalType: "uint256", name: "amountETHMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "addLiquidityETH",
-    outputs: [
-      { internalType: "uint256", name: "amountToken", type: "uint256" },
-      { internalType: "uint256", name: "amountETH", type: "uint256" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-    ],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "factory",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOut", type: "uint256" },
-      { internalType: "uint256", name: "reserveIn", type: "uint256" },
-      { internalType: "uint256", name: "reserveOut", type: "uint256" },
-    ],
-    name: "getAmountIn",
-    outputs: [{ internalType: "uint256", name: "amountIn", type: "uint256" }],
-    stateMutability: "pure",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "reserveIn", type: "uint256" },
-      { internalType: "uint256", name: "reserveOut", type: "uint256" },
-    ],
-    name: "getAmountOut",
-    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
-    stateMutability: "pure",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOut", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-    ],
-    name: "getAmountsIn",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-    ],
-    name: "getAmountsOut",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountA", type: "uint256" },
-      { internalType: "uint256", name: "reserveA", type: "uint256" },
-      { internalType: "uint256", name: "reserveB", type: "uint256" },
-    ],
-    name: "quote",
-    outputs: [{ internalType: "uint256", name: "amountB", type: "uint256" }],
-    stateMutability: "pure",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenA", type: "address" },
-      { internalType: "address", name: "tokenB", type: "address" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "amountAMin", type: "uint256" },
-      { internalType: "uint256", name: "amountBMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "removeLiquidity",
-    outputs: [
-      { internalType: "uint256", name: "amountA", type: "uint256" },
-      { internalType: "uint256", name: "amountB", type: "uint256" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "amountTokenMin", type: "uint256" },
-      { internalType: "uint256", name: "amountETHMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "removeLiquidityETH",
-    outputs: [
-      { internalType: "uint256", name: "amountToken", type: "uint256" },
-      { internalType: "uint256", name: "amountETH", type: "uint256" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "amountTokenMin", type: "uint256" },
-      { internalType: "uint256", name: "amountETHMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "removeLiquidityETHSupportingFeeOnTransferTokens",
-    outputs: [{ internalType: "uint256", name: "amountETH", type: "uint256" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "amountTokenMin", type: "uint256" },
-      { internalType: "uint256", name: "amountETHMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-      { internalType: "bool", name: "approveMax", type: "bool" },
-      { internalType: "uint8", name: "v", type: "uint8" },
-      { internalType: "bytes32", name: "r", type: "bytes32" },
-      { internalType: "bytes32", name: "s", type: "bytes32" },
-    ],
-    name: "removeLiquidityETHWithPermit",
-    outputs: [
-      { internalType: "uint256", name: "amountToken", type: "uint256" },
-      { internalType: "uint256", name: "amountETH", type: "uint256" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "token", type: "address" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "amountTokenMin", type: "uint256" },
-      { internalType: "uint256", name: "amountETHMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-      { internalType: "bool", name: "approveMax", type: "bool" },
-      { internalType: "uint8", name: "v", type: "uint8" },
-      { internalType: "bytes32", name: "r", type: "bytes32" },
-      { internalType: "bytes32", name: "s", type: "bytes32" },
-    ],
-    name: "removeLiquidityETHWithPermitSupportingFeeOnTransferTokens",
-    outputs: [{ internalType: "uint256", name: "amountETH", type: "uint256" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenA", type: "address" },
-      { internalType: "address", name: "tokenB", type: "address" },
-      { internalType: "uint256", name: "liquidity", type: "uint256" },
-      { internalType: "uint256", name: "amountAMin", type: "uint256" },
-      { internalType: "uint256", name: "amountBMin", type: "uint256" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-      { internalType: "bool", name: "approveMax", type: "bool" },
-      { internalType: "uint8", name: "v", type: "uint8" },
-      { internalType: "bytes32", name: "r", type: "bytes32" },
-      { internalType: "bytes32", name: "s", type: "bytes32" },
-    ],
-    name: "removeLiquidityWithPermit",
-    outputs: [
-      { internalType: "uint256", name: "amountA", type: "uint256" },
-      { internalType: "uint256", name: "amountB", type: "uint256" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOut", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapETHForExactTokens",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapExactETHForTokens",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapExactETHForTokensSupportingFeeOnTransferTokens",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapExactTokensForETH",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapExactTokensForETHSupportingFeeOnTransferTokens",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapExactTokensForTokens",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapExactTokensForTokensSupportingFeeOnTransferTokens",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOut", type: "uint256" },
-      { internalType: "uint256", name: "amountInMax", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapTokensForExactETH",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "amountOut", type: "uint256" },
-      { internalType: "uint256", name: "amountInMax", type: "uint256" },
-      { internalType: "address[]", name: "path", type: "address[]" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-    ],
-    name: "swapTokensForExactTokens",
-    outputs: [
-      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  { stateMutability: "payable", type: "receive" },
+const SWAP_ROUTER_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"WETH9","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"components":[{"internalType":"bytes","name":"path","type":"bytes"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMinimum","type":"uint256"}],"internalType":"struct ISwapRouter.ExactInputParams","name":"params","type":"tuple"}],"name":"exactInput","outputs":[{"internalType":"uint256","name":"amountOut","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"components":[{"internalType":"address","name":"tokenIn","type":"address"},{"internalType":"address","name":"tokenOut","type":"address"},{"internalType":"uint24","name":"fee","type":"uint24"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMinimum","type":"uint256"},{"internalType":"uint160","name":"sqrtPriceLimitX96","type":"uint160"}],"internalType":"struct ISwapRouter.ExactInputSingleParams","name":"params","type":"tuple"}],"name":"exactInputSingle","outputs":[{"internalType":"uint256","name":"amountOut","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"components":[{"internalType":"bytes","name":"path","type":"bytes"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint256","name":"amountOut","type":"uint256"},{"internalType":"uint256","name":"amountInMaximum","type":"uint256"}],"internalType":"struct ISwapRouter.ExactOutputParams","name":"params","type":"tuple"}],"name":"exactOutput","outputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"components":[{"internalType":"address","name":"tokenIn","type":"address"},{"internalType":"address","name":"tokenOut","type":"address"},{"internalType":"uint24","name":"fee","type":"uint24"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint256","name":"amountOut","type":"uint256"},{"internalType":"uint256","name":"amountInMaximum","type":"uint256"},{"internalType":"uint160","name":"sqrtPriceLimitX96","type":"uint160"}],"internalType":"struct ISwapRouter.ExactOutputSingleParams","name":"params","type":"tuple"}],"name":"exactOutputSingle","outputs":[{"internalType":"uint256","name":"amountIn","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"factory","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes[]","name":"data","type":"bytes[]"}],"name":"multicall","outputs":[{"internalType":"bytes[]","name":"results","type":"bytes[]"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"refundETH","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"selfPermit","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"nonce","type":"uint256"},{"internalType":"uint256","name":"expiry","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"selfPermitAllowed","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"nonce","type":"uint256"},{"internalType":"uint256","name":"expiry","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"selfPermitAllowedIfNecessary","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"selfPermitIfNecessary","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amountMinimum","type":"uint256"},{"internalType":"address","name":"recipient","type":"address"}],"name":"sweepToken","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amountMinimum","type":"uint256"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"feeBips","type":"uint256"},{"internalType":"address","name":"feeRecipient","type":"address"}],"name":"sweepTokenWithFee","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"int256","name":"amount0Delta","type":"int256"},{"internalType":"int256","name":"amount1Delta","type":"int256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"uniswapV3SwapCallback","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountMinimum","type":"uint256"},{"internalType":"address","name":"recipient","type":"address"}],"name":"unwrapWETH9","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amountMinimum","type":"uint256"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"feeBips","type":"uint256"},{"internalType":"address","name":"feeRecipient","type":"address"}],"name":"unwrapWETH9WithFee","outputs":[],"stateMutability":"payable","type":"function"},{"stateMutability":"payable","type":"receive"}
 ];
+
+const ERC20_ABI = [
+  "function approve(address spender, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)",
+  "function balanceOf(address account) external view returns (uint256)",
+  "function decimals() external view returns (uint8)",
+  "function symbol() external view returns (string)",
+  "function name() external view returns (string)",
+];
+
+function sqrtPriceX96ToPrice(sqrtPriceX96, dec0, dec1) {
+  const Q96 = BigInt("0x1000000000000000000000000");
+  const sq = BigInt(sqrtPriceX96.toString());
+  const numerator   = sq * sq;
+  const denominator = Q96 * Q96;
+  const priceRaw = Number(numerator) / Number(denominator);
+  return priceRaw * 10 ** (dec0 - dec1);
+}
+
+function useWindowSize() {
+  const [size, setSize] = useState({
+    width:  typeof window !== "undefined" ? window.innerWidth  : 420,
+    height: typeof window !== "undefined" ? window.innerHeight : 800,
+  });
+  useEffect(() => {
+    const handle = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+  return size;
+}
 
 export default function SwapUI({ onClose }) {
-  const [price, setPrice]         = useState(0);
-  const [ethAmount, setEthAmount] = useState("");
-  const [mtkOut, setMtkOut]       = useState(null);
-  const [account, setAccount]     = useState(null);
-  const [loading, setLoading]     = useState(false);
-  const [txHash, setTxHash]       = useState(null);
+  const { width } = useWindowSize();
+  const isMobile = width < 480;
+  const [account, setAccount]   = useState(null);
+  const [chainId, setChainId]   = useState(null);
+  const [poolFee,        setPoolFee]        = useState(null);
+  const [token0,         setToken0]         = useState(null);
+  const [token1,         setToken1]         = useState(null);
+  const [token0Symbol,   setToken0Symbol]   = useState("...");
+  const [token1Symbol,   setToken1Symbol]   = useState("...");
+  const [token0Decimals, setToken0Decimals] = useState(6);
+  const [token1Decimals, setToken1Decimals] = useState(6);
+  const [price,          setPrice]          = useState(0);
+  const [priceInverse,   setPriceInverse]   = useState(0);
+  const [balance0, setBalance0] = useState("0");
+  const [balance1, setBalance1] = useState("0");
+  const [swapDirection,   setSwapDirection]   = useState("0to1");
+  const [inputAmount,     setInputAmount]     = useState("");
+  const [estimatedOutput, setEstimatedOutput] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [txHash,  setTxHash]  = useState(null);
 
-  // ── Auto-detect existing wallet connection ──
   useEffect(() => {
-    const detectWallet = async () => {
+    const detect = async () => {
       if (!window.ethereum) return;
       try {
-        const provider  = new ethers.BrowserProvider(window.ethereum);
-        const accounts  = await provider.listAccounts();
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.listAccounts();
         if (accounts.length > 0) {
-          setAccount(accounts[0].address ?? accounts[0]);
+          const addr = accounts[0].address ?? accounts[0];
+          setAccount(addr);
+          const net = await provider.getNetwork();
+          setChainId(Number(net.chainId));
         }
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (e) { console.error(e); }
     };
-    detectWallet();
+    detect();
+
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accs) => setAccount(accs[0] ?? null));
+      window.ethereum.on("chainChanged",    ()     => window.location.reload());
+    }
   }, []);
 
-  // ── Fetch price ──
-  const getPrice = async () => {
+  const fetchPoolData = useCallback(async () => {
+    if (!window.ethereum) return;
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      // If provider throws (no metaMask), handle gracefully via toast later
-      const pair     = new ethers.Contract(PAIR_ADDRESS, pairABI, provider);
-      const [reserve0, reserve1] = await pair.getReserves();
-      const mtk   = Number(ethers.formatEther(reserve0));
-      const eth   = Number(ethers.formatEther(reserve1));
-      
-      // Avoid NaN division
-      const calculatedPrice = mtk > 0 ? eth / mtk : 0;
-      setPrice(calculatedPrice);
-    } catch (err) {
-      console.error(err);
-      // Optional: toast.error("Failed to load price data");
-    }
-  };
+      const pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
 
-  useEffect(() => { 
-    getPrice(); 
-    // Interval could be added here for live prices
+      const [slot0data, t0, t1, fee] = await Promise.all([
+        pool.slot0(),
+        pool.token0(),
+        pool.token1(),
+        pool.fee(),
+      ]);
+
+      setToken0(t0);
+      setToken1(t1);
+      setPoolFee(Number(fee));
+
+      const t0c = new ethers.Contract(t0, ERC20_ABI, provider);
+      const t1c = new ethers.Contract(t1, ERC20_ABI, provider);
+      const [sym0, sym1, dec0, dec1] = await Promise.all([
+        t0c.symbol(),
+        t1c.symbol(),
+        t0c.decimals(),
+        t1c.decimals(),
+      ]);
+
+      const d0 = Number(dec0);
+      const d1 = Number(dec1);
+      setToken0Symbol(sym0);
+      setToken1Symbol(sym1);
+      setToken0Decimals(d0);
+      setToken1Decimals(d1);
+
+      const sqrtPriceX96 = slot0data[0];
+      const p = sqrtPriceX96ToPrice(sqrtPriceX96, d0, d1);
+      setPrice(p);
+      setPriceInverse(p > 0 ? 1 / p : 0);
+
+    } catch (e) {
+      console.error("Pool fetch error:", e);
+    }
   }, []);
 
-  // ── Estimate MTK output as user types ──
   useEffect(() => {
-    if (!ethAmount || isNaN(ethAmount) || Number(ethAmount) <= 0) {
-      setMtkOut(null);
+    fetchPoolData();
+    const id = setInterval(fetchPoolData, 15_000);
+    return () => clearInterval(id);
+  }, [fetchPoolData]);
+
+  const fetchBalances = useCallback(async () => {
+    if (!account || !token0 || !token1) return;
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const c0 = new ethers.Contract(token0, ERC20_ABI, provider);
+      const c1 = new ethers.Contract(token1, ERC20_ABI, provider);
+      const [b0, b1] = await Promise.all([
+        c0.balanceOf(account),
+        c1.balanceOf(account),
+      ]);
+      setBalance0(ethers.formatUnits(b0, token0Decimals));
+      setBalance1(ethers.formatUnits(b1, token1Decimals));
+    } catch (e) {
+      console.error("Balance fetch error:", e);
+    }
+  }, [account, token0, token1, token0Decimals, token1Decimals]);
+
+  useEffect(() => { fetchBalances(); }, [fetchBalances]);
+
+  useEffect(() => {
+    const amt = Number(inputAmount);
+    if (!inputAmount || isNaN(amt) || amt <= 0 || price <= 0) {
+      setEstimatedOutput(null);
       return;
     }
-    if (price > 0) {
-      setMtkOut((Number(ethAmount) / price).toFixed(4));
-    }
-  }, [ethAmount, price]);
+    const raw = swapDirection === "0to1" ? amt * price : amt * priceInverse;
+    setEstimatedOutput(raw.toFixed(6));
+  }, [inputAmount, price, priceInverse, swapDirection]);
 
-  // ── Connect Wallet ──
   const connectWallet = async () => {
+    if (!window.ethereum) return toast.error("⚠️ MetaMask not found!");
     try {
-      if (!window.ethereum) {
-        return toast.error("⚠️ MetaMask not found!");
-      }
-      
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
+      const provider  = new ethers.BrowserProvider(window.ethereum);
+      const accounts  = await provider.send("eth_requestAccounts", []);
+      const net       = await provider.getNetwork();
       setAccount(accounts[0]);
+      setChainId(Number(net.chainId));
       toast.success("🔗 Wallet Connected!");
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
       toast.error("❌ Connection Rejected");
     }
   };
 
-  // ── Buy MTK ──
-  const buyToken = async () => {
+  const executeSwap = async () => {
+    if (!inputAmount || Number(inputAmount) <= 0)
+      return toast.error("⚠️ Enter an amount");
+    if (!account)
+      return toast.error("⚠️ Connect your wallet first");
+    if (!poolFee || !token0 || !token1)
+      return toast.error("⚠️ Pool data not loaded yet — please wait");
+    if (price <= 0)
+      return toast.error("⚠️ Price not available yet");
+
+    setLoading(true);
+    setTxHash(null);
+
     try {
-      if (!ethAmount || Number(ethAmount) <= 0) return toast.error("⚠️ Enter ETH amount");
-      if (!account) return toast.error("⚠️ Connect wallet first");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer   = await provider.getSigner();
 
-      setLoading(true);
-      setTxHash(null);
+      const tokenIn    = swapDirection === "0to1" ? token0 : token1;
+      const tokenOut   = swapDirection === "0to1" ? token1 : token0;
+      const decimalsIn = swapDirection === "0to1" ? token0Decimals : token1Decimals;
+      const decimalsOut= swapDirection === "0to1" ? token1Decimals : token0Decimals;
 
-      // Trigger loading toast
-      const promise = new Promise(async (resolve, reject) => {
+      let amountIn;
+      try {
+        amountIn = ethers.parseUnits(String(inputAmount), decimalsIn);
+      } catch {
+        toast.error("Invalid amount");
+        setLoading(false);
+        return;
+      }
+
+      const tokenInContract = new ethers.Contract(tokenIn, ERC20_ABI, signer);
+      const allowance = await tokenInContract.allowance(account, SWAP_ROUTER_ADDRESS);
+
+      if (allowance < amountIn) {
+        const tid = toast.loading("🔓 Approving token spend…");
         try {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const signer   = await provider.getSigner();
-          const router   = new ethers.Contract(ROUTER_ADDRESS, routerABI, signer);
-
-          const tx = await router.swapExactETHForTokens(
-            0, 
-            [WETH, MTK], 
-            account, 
-            Math.floor(Date.now() / 1000) + 600, 
-            { value: ethers.parseEther(String(ethAmount)) }
-          );
-
-          const receipt = await tx.wait();
-          resolve(receipt.hash);
-        } catch (err) {
-          reject(err);
-        } finally {
+          const tx = await tokenInContract.approve(SWAP_ROUTER_ADDRESS, ethers.MaxUint256);
+          await tx.wait();
+          toast.dismiss(tid);
+          toast.success("Approval confirmed!");
+        } catch (e) {
+          toast.dismiss(tid);
+          toast.error("Approval rejected");
           setLoading(false);
+          return;
         }
+      }
+
+      let amountOutMin = 0n;
+      if (estimatedOutput && Number(estimatedOutput) > 0) {
+        try {
+          const minOutFloat = Number(estimatedOutput) * 0.995;
+          const minOutStr   = minOutFloat.toFixed(Math.min(decimalsOut, 6));
+          amountOutMin      = ethers.parseUnits(minOutStr, decimalsOut);
+        } catch {
+          amountOutMin = 0n;
+        }
+      }
+
+      const deadline = Math.floor(Date.now() / 1000) + 600;
+      const params   = {
+        tokenIn,
+        tokenOut,
+        fee:              poolFee,
+        recipient:        account,
+        deadline,
+        amountIn,
+        amountOutMinimum: amountOutMin,
+        sqrtPriceLimitX96: 0n,
+      };
+
+      console.log("Swap params:", {
+        tokenIn,
+        tokenOut,
+        fee: poolFee,
+        recipient: account,
+        deadline,
+        amountIn: amountIn.toString(),
+        amountOutMinimum: amountOutMin.toString(),
       });
 
-      toast.promise(promise, {
-        loading: "⏳ Confirming Swap...",
-        success: (hash) => {
-          setTxHash(hash);
-          setEthAmount("");
-          setMtkOut(null);
-          getPrice(); // Refresh prices
-          return "✅ Swap Successful!";
-        },
-        error: (err) => {
-          return err.reason || "Swap failed ❌";
-        }
-      });
+      const router  = new ethers.Contract(SWAP_ROUTER_ADDRESS, SWAP_ROUTER_ABI, signer);
+      const tid2    = toast.loading("⏳ Confirm in wallet…");
+      let tx;
+      try {
+        tx = await router.exactInputSingle(params);
+      } catch (e) {
+        toast.dismiss(tid2);
+        const msg = e?.reason ?? e?.data?.message ?? e?.message ?? "Swap failed";
+        toast.error(`❌ ${msg}`);
+        setLoading(false);
+        return;
+      }
 
-    } catch (err) {
-      console.error(err);
+      toast.dismiss(tid2);
+      const tid3 = toast.loading("Waiting for confirmation…");
+      let receipt;
+      try {
+        receipt = await tx.wait();
+      } catch (e) {
+        toast.dismiss(tid3);
+        toast.error("❌ Transaction failed on-chain");
+        setLoading(false);
+        return;
+      }
+
+      toast.dismiss(tid3);
+      toast.success("Swap Successful!");
+      setTxHash(receipt.hash);
+      setInputAmount("");
+      setEstimatedOutput(null);
+      fetchPoolData();
+      fetchBalances();
+
+    } catch (e) {
+      console.error("Swap error:", e);
+      toast.error(e?.reason ?? e?.message ?? "❌ Unknown error");
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Variants for Framer Motion ──
-  const containerVariants = {
-    hidden: { opacity: 0, y: 50, scale: 0.95 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
-    exit: { opacity: 0, y: 50, transition: { duration: 0.3 } }
+  const toggleDirection = () => {
+    setSwapDirection(d => d === "0to1" ? "1to0" : "0to1");
+    setInputAmount("");
+    setEstimatedOutput(null);
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3, delay: 0.1 } }
+  const inputSymbol   = swapDirection === "0to1" ? token0Symbol : token1Symbol;
+  const outputSymbol  = swapDirection === "0to1" ? token1Symbol : token0Symbol;
+  const inputBalance  = swapDirection === "0to1" ? balance0     : balance1;
+  const outputBalance = swapDirection === "0to1" ? balance1     : balance0;
+  const feePercent    = poolFee ? (poolFee / 10_000).toFixed(2) : "...";
+
+  const priceLabel = price > 0
+    ? swapDirection === "0to1"
+      ? `1 ${token0Symbol} = ${price.toFixed(6)} ${token1Symbol}`
+      : `1 ${token1Symbol} = ${priceInverse.toFixed(6)} ${token0Symbol}`
+    : "Loading…";
+
+  const cardVariants = {
+    hidden:  { opacity: 0, y: 30, scale: 0.97 },
+    visible: { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.35, ease: "easeOut" } },
+    exit:    { opacity: 0, y: 20,            transition: { duration: 0.25 } },
   };
 
   return (
     <>
-      <Toaster position="top-center" gutter={12} />
-      
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        variants={containerVariants}
-        style={styles.wrapper}
-      >
-        {/* HEADER */}
-        <div style={styles.header}>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <span style={styles.headerIcon}>🔄</span>
-            <h2 style={styles.headerTitle}>Swap MTK</h2>
-          </motion.div>
-          
-          <motion.button
-            onClick={onClose}
-            whileHover={{ scale: 1.05, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
-            style={styles.closeBtn}
-            type="button"
-          >
-            ✕
-          </motion.button>
-        </div>
+      <style>{`
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+        input[type=number] { -moz-appearance: textfield; }
 
-        {/* PRICE CARD */}
-        <motion.div 
-          variants={itemVariants}
-          custom={true} 
-          style={styles.priceCard}
-        >
-          <div style={styles.priceRow}>
-            <div style={styles.priceItem}>
-              <span style={styles.priceLabel}>Pair</span>
-              <span style={styles.priceValue}>ETH / MTK</span>
+        .sw-overlay {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: 100vh;
+          height: 100dvh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0,0,0,0.65);
+          backdrop-filter: blur(5px);
+          z-index: 9999;
+          padding: 12px;
+        }
+        .sw-scroll {
+          width: 100%;
+          max-width: 440px;
+          max-height: calc(100dvh - 24px);
+          max-height: calc(100vh  - 24px);
+          overflow-y: auto;
+          overflow-x: hidden;
+          border-radius: 20px;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .sw-scroll::-webkit-scrollbar { display: none; }
+
+        @media (max-width: 479px) {
+          .sw-overlay { padding: 8px; align-items: flex-end; }
+          .sw-scroll  {
+            max-width: 100%;
+            max-height: calc(100dvh - 16px);
+            max-height: calc(100vh  - 16px);
+            border-radius: 20px 20px 12px 12px;
+          }
+        }
+      `}</style>
+
+      <Toaster
+        position="top-center"
+        gutter={8}
+        toastOptions={{
+          style: {
+            fontSize: isMobile ? "13px" : "14px",
+            maxWidth: isMobile ? "92vw" : "380px",
+            zIndex: 10000,
+          },
+        }}
+      />
+
+      <div className="sw-overlay">
+        <div className="sw-scroll">
+          <motion.div
+            initial="hidden" animate="visible" exit="exit"
+            variants={cardVariants}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: isMobile ? "10px" : "14px",
+              width: "100%",
+              background: "rgba(15,15,15,0.98)",
+              backdropFilter: "blur(12px)",
+              padding: isMobile ? "14px 12px" : "20px",
+              borderRadius: "inherit",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#fff",
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            {/* ══ HEADER ══ */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                <span style={{ fontSize: isMobile ? "20px" : "24px" }}>🦄</span>
+                <h2 style={{ fontSize: isMobile ? "17px":"20px", fontWeight:800, color:"#ffb74d", margin:0 }}>
+                  Swap
+                </h2>
+                <span style={{
+                  fontSize:"10px", fontWeight:800, color:"#ff9800",
+                  background:"rgba(255,152,0,0.15)", border:"1px solid rgba(255,152,0,0.3)",
+                  padding:"2px 8px", borderRadius:"6px", letterSpacing:"1px",
+                }}>V3</span>
+              </div>
+
+              <motion.button
+                onClick={onClose}
+                whileHover={{ scale:1.08 }} whileTap={{ scale:0.9 }}
+                style={{
+                  padding: isMobile ? "5px 10px" : "6px 14px",
+                  background:"rgba(255,255,255,0.06)",
+                  border:"1px solid rgba(255,255,255,0.12)",
+                  borderRadius:"8px", color:"#aaa",
+                  fontSize: isMobile ? "12px":"13px",
+                  fontWeight:700, cursor:"pointer", outline:"none",
+                }}
+              >✕ Close</motion.button>
             </div>
-            <div style={styles.priceDivider} />
-            <div style={styles.priceItem}>
-              <span style={styles.priceLabel}>Current Price</span>
-              <span style={styles.priceValue}>
-                {price > 0 ? `${(1/price).toFixed(6)} MTK` : "Loading..."}
+
+            {/* ══ POOL INFO ══ */}
+            <div style={{
+              background:"rgba(255,255,255,0.03)",
+              border:"1px solid rgba(255,255,255,0.07)",
+              borderRadius:"14px",
+              padding: isMobile ? "10px":"14px 18px",
+            }}>
+              <div style={{
+                display:"flex", justifyContent:"space-around",
+                alignItems:"center", flexWrap:"wrap", gap:"8px",
+              }}>
+                {[
+                  // { label:"Pair",     value:`${token0Symbol} / ${token1Symbol}` },
+                  { label:"Price",    value: priceLabel },
+                  { label:"Fee Tier", value:`${feePercent}%` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{
+                    display:"flex", flexDirection:"column",
+                    alignItems:"center", gap:"3px", minWidth:"80px",
+                  }}>
+                    <span style={{
+                      fontSize: isMobile ? "10px":"11px", color:"#888",
+                      textTransform:"uppercase", letterSpacing:"1px",
+                    }}>{label}</span>
+                    <span style={{
+                      fontSize: isMobile ? "11px":"13px", fontWeight:700,
+                      color:"#ffb74d", textAlign:"center",
+                    }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ══ MAIN ══ */}
+            <AnimatePresence mode="wait">
+              {!account ? (
+                <motion.div
+                  key="connect"
+                  initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+                  style={{
+                    background:"rgba(255,255,255,0.03)",
+                    border:"1px solid rgba(255,255,255,0.07)",
+                    borderRadius:"14px",
+                    padding: isMobile ? "28px 16px":"36px 20px",
+                    textAlign:"center",
+                    display:"flex", flexDirection:"column",
+                    alignItems:"center", gap:"14px",
+                  }}
+                >
+                  <motion.span
+                    animate={{ y:[0,-8,0] }}
+                    transition={{ repeat:Infinity, duration:2 }}
+                    style={{ fontSize: isMobile ? "32px":"40px" }}
+                  >🔗</motion.span>
+
+                  <p style={{
+                    fontSize: isMobile ? "13px":"14px", color:"#888",
+                    maxWidth:"260px", lineHeight:1.55,
+                  }}>
+                    Connect your wallet to swap {token0Symbol} ↔ {token1Symbol} via Uniswap V3
+                  </p>
+
+                  <motion.button
+                    whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
+                    onClick={connectWallet}
+                    style={{
+                      padding: isMobile ? "12px 24px":"13px 32px",
+                      background:"linear-gradient(135deg,#ff9800,#f57c00)",
+                      border:"none", borderRadius:"12px",
+                      color:"#000", fontWeight:800,
+                      fontSize: isMobile ? "14px":"15px",
+                      cursor:"pointer",
+                      boxShadow:"0 4px 18px rgba(255,152,0,0.35)",
+                      width: isMobile ? "100%":"auto",
+                    }}
+                  >🦊 Connect MetaMask</motion.button>
+                </motion.div>
+
+              ) : (
+                <motion.div
+                  key="swap"
+                  initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+                  exit={{ opacity:0 }}
+                  style={{ display:"flex", flexDirection:"column", gap:"10px" }}
+                >
+                  {/* swap box */}
+                  <div style={{
+                    background:"rgba(255,255,255,0.03)",
+                    border:"1px solid rgba(255,255,255,0.07)",
+                    borderRadius:"16px",
+                    padding: isMobile ? "12px":"16px",
+                    display:"flex", flexDirection:"column", gap:"4px",
+                  }}>
+
+                    {/* FROM */}
+                    <TokenBox
+                      label="You Pay"
+                      symbol={inputSymbol}
+                      balance={inputBalance}
+                      value={inputAmount}
+                      onChange={setInputAmount}
+                      onMax={() => setInputAmount(inputBalance)}
+                      isMobile={isMobile}
+                      editable
+                    />
+
+                    {/* toggle */}
+                    <div style={{ display:"flex", justifyContent:"center", padding:"3px 0" }}>
+                      <motion.button
+                        whileHover={{ scale:1.15, rotate:180 }}
+                        whileTap={{ scale:0.9 }}
+                        onClick={toggleDirection}
+                        style={{
+                          width: isMobile ? "32px":"36px",
+                          height: isMobile ? "32px":"36px",
+                          borderRadius:"10px",
+                          background:"rgba(255,152,0,0.1)",
+                          border:"1px solid rgba(255,152,0,0.25)",
+                          color:"#ff9800", fontSize:"18px",
+                          cursor:"pointer", outline:"none",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                        }}
+                      >↕</motion.button>
+                    </div>
+
+                    {/* TO */}
+                    <TokenBox
+                      label="You Receive (est.)"
+                      symbol={outputSymbol}
+                      balance={outputBalance}
+                      value={estimatedOutput ?? "0.0"}
+                      isMobile={isMobile}
+                      editable={false}
+                    />
+                  </div>
+
+                  {/* SWAP BUTTON */}
+                  <motion.button
+                    whileHover={!loading ? { scale:1.02 } : {}}
+                    whileTap={!loading ? { scale:0.98 } : {}}
+                    onClick={executeSwap}
+                    disabled={loading || !inputAmount || Number(inputAmount) <= 0}
+                    style={{
+                      width:"100%",
+                      padding: isMobile ? "13px":"15px",
+                      background: loading
+                        ? "rgba(255,152,0,0.4)"
+                        : "linear-gradient(135deg,#ff9800,#f57c00)",
+                      border:"none", borderRadius:"12px",
+                      color:"#000", fontWeight:800,
+                      fontSize: isMobile ? "14px":"15px",
+                      cursor: loading || !inputAmount ? "not-allowed":"pointer",
+                      opacity: !inputAmount || Number(inputAmount) <= 0 ? 0.55 : 1,
+                      boxShadow:"0 4px 15px rgba(255,152,0,0.25)",
+                      transition:"all 0.2s ease",
+                    }}
+                  >
+                    {loading
+                      ? "⏳ Swapping…"
+                      : `🔄 Swap ${inputSymbol} → ${outputSymbol}`}
+                  </motion.button>
+
+                  {/* TX SUCCESS */}
+                  <AnimatePresence>
+                    {txHash && (
+                      <motion.div
+                        initial={{ height:0, opacity:0 }}
+                        animate={{ height:"auto", opacity:1 }}
+                        exit={{ height:0, opacity:0 }}
+                        style={{
+                          display:"flex", alignItems:"flex-start", gap:"12px",
+                          background:"rgba(0,200,100,0.1)",
+                          border:"1px solid rgba(0,200,100,0.2)",
+                          borderRadius:"12px",
+                          padding: isMobile ? "12px 14px":"14px 16px",
+                          overflow:"hidden",
+                        }}
+                      >
+                        <span style={{ fontSize:"20px", flexShrink:0 }}>✅</span>
+                        <div>
+                          <div style={{
+                            fontSize: isMobile ? "13px":"14px",
+                            fontWeight:700, color:"#00e676", marginBottom:"2px",
+                          }}>Transaction Confirmed!</div>
+                          <div style={{
+                            fontSize: isMobile ? "11px":"12px",
+                            color:"#888", wordBreak:"break-all",
+                          }}>
+                            Tx: {txHash.slice(0,10)}…{txHash.slice(-8)}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* DETAILS */}
+                  <div style={{
+                    background:"rgba(255,255,255,0.02)",
+                    border:"1px solid rgba(255,255,255,0.06)",
+                    borderRadius:"12px",
+                    padding: isMobile ? "10px 12px":"13px 15px",
+                    display:"flex", flexDirection:"column",
+                    gap: isMobile ? "5px":"7px",
+                  }}>
+                    {[
+                      { label:"Fee Tier",           value:`${feePercent}%` },
+                      { label:"Slippage Tolerance", value:"0.5%" },
+                      {
+                        label:"Min. Received",
+                        value: estimatedOutput
+                          ? `${(Number(estimatedOutput)*0.995).toFixed(6)} ${outputSymbol}`
+                          : `— ${outputSymbol}`,
+                      },
+                      { label:"Route", value:`${inputSymbol} → ${outputSymbol}` },
+                    ].map(({ label, value }) => (
+                      <div key={label} style={{
+                        display:"flex", justifyContent:"space-between",
+                        alignItems:"center", gap:"8px",
+                      }}>
+                        <span style={{ fontSize: isMobile ? "11px":"12px", color:"#666" }}>
+                          {label}
+                        </span>
+                        <span style={{
+                          fontSize: isMobile ? "11px":"12px", color:"#aaa",
+                          fontWeight:600, textAlign:"right", wordBreak:"break-all",
+                        }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* WALLET STATUS */}
+                  <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                    <span style={{
+                      width:"8px", height:"8px", borderRadius:"50%",
+                      background:"#00e676", flexShrink:0,
+                      boxShadow:"0 0 6px #00e676", display:"block",
+                    }}/>
+                    <span style={{
+                      fontSize: isMobile ? "11px":"12px",
+                      color:"#888", fontFamily:"monospace",
+                    }}>
+                      {account.slice(0,6)}…{account.slice(-4)}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* ══ FOOTER ══ */}
+            <div style={{
+              display:"flex", alignItems:"center", gap:"8px",
+              padding: isMobile ? "7px 10px":"9px 13px",
+              background:"rgba(255,255,255,0.02)",
+              borderRadius:"10px", border:"1px solid rgba(255,255,255,0.05)",
+              opacity:0.65,
+            }}>
+              <motion.span
+                animate={{ scale:[1,1.4,1] }}
+                transition={{ repeat:Infinity, duration:2 }}
+                style={{
+                  width:"6px", height:"6px", borderRadius:"50%",
+                  background:"#ff9800", flexShrink:0, display:"block",
+                }}
+              />
+              <span style={{ fontSize: isMobile ? "10px":"11px", color:"#666", lineHeight:1.4 }}>
+                {isMobile
+                  ? `Uniswap V3 · ${feePercent}% fee`
+                  : `Powered by Uniswap V3 · Concentrated Liquidity · ${feePercent}% fee tier`}
               </span>
             </div>
-            <div style={styles.priceDivider} />
-            <div style={styles.priceItem}>
-              <span style={styles.priceLabel}>Network</span>
-              <span style={styles.priceValue}>Sepolia</span>
-            </div>
-          </div>
-        </motion.div>
-
-        <AnimatePresence mode='wait'>
-          {!account ? (
-            // ── NOT CONNECTED STATE ──
-            <motion.div
-              key="connect"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              style={styles.connectBox}
-            >
-              <motion.span 
-                animate={{ y: [0, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                style={styles.connectIcon}
-              >
-                🔗
-              </motion.span>
-              <p style={styles.connectText}>
-                Connect your wallet to swap ETH for MTK tokens securely
-              </p>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={connectWallet} 
-                style={styles.connectBtn}
-              >
-                🦊 Connect MetaMask
-              </motion.button>
-            </motion.div>
-          ) : (
-            // ── SWAP STATE ──
-            <motion.div
-              key="swap"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              {/* ── SWAP BOX ── */}
-              <div style={styles.swapBox}>
-
-                {/* FROM */}
-                <div style={styles.swapField}>
-                  <div style={styles.swapFieldTop}>
-                    <span style={styles.swapFieldLabel}>You Pay</span>
-                    <span style={styles.swapFieldToken}>ETH</span>
-                  </div>
-                  <motion.input
-                    whileFocus={{ borderColor: "#ff9800", boxShadow: "0 0 8px rgba(255,152,0,0.3)" }}
-                    type="number"
-                    placeholder="0.0"
-                    value={ethAmount}
-                    onChange={(e) => setEthAmount(e.target.value)}
-                    style={styles.swapInput}
-                  />
-                </div>
-
-                {/* ARROW */}
-                <div style={styles.swapArrow}>↓</div>
-
-                {/* TO */}
-                <div style={styles.swapField}>
-                  <div style={styles.swapFieldTop}>
-                    <span style={styles.swapFieldLabel}>You Receive (est.)</span>
-                    <span style={styles.swapFieldToken}>MTK</span>
-                  </div>
-                  <div style={styles.swapOutput}>
-                    {mtkOut ?? "0.0"}
-                  </div>
-                </div>
-              </div>
-
-              {/* WALLET INFO */}
-              <div style={styles.walletInfo}>
-                <motion.span 
-                  initial={{ scale: 0 }} 
-                  animate={{ scale: 1 }} 
-                  style={styles.walletDot} 
-                />
-                <motion.span 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }}
-                  style={styles.walletText}
-                >
-                  {account.slice(0, 6)}...{account.slice(-4)}
-                </motion.span>
-              </div>
-
-              {/* SWAP BUTTON */}
-              <motion.button
-                whileHover={!loading ? { scale: 1.02 } : {}}
-                whileTap={!loading ? { scale: 0.98 } : {}}
-                onClick={buyToken}
-                disabled={loading || !ethAmount}
-                style={{
-                  ...styles.swapBtn,
-                  opacity: loading || !ethAmount ? 0.7 : 1,
-                  cursor: loading || !ethAmount ? "not-allowed" : "pointer",
-                  filter: loading ? "grayscale(0.5)" : "none"
-                }}
-              >
-                {loading ? (
-                  <span role="status" aria-label="swapping">⏳ Swapping...</span>
-                ) : (
-                  <span>🔄 Swap ETH → MTK</span>
-                )}
-              </motion.button>
-
-              {/* TX SUCCESS BOX */}
-              <AnimatePresence>
-                {txHash && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    style={styles.successBox}
-                  >
-                    <span style={styles.successIcon}>✅</span>
-                    <div>
-                      <div style={styles.successTitle}>Transaction Confirmed!</div>
-                      <div style={styles.successHash}>
-                        Tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── INFO FOOTER ── */}
-        <div style={styles.infoFooter}>
-          <motion.span 
-            animate={{ scale: [1, 1.2, 1] }} 
-            transition={{ repeat: Infinity, duration: 2 }}
-            style={styles.infoDot} 
-          />
-          <span style={styles.infoText}>
-            Powered by Uniswap V2 • 0.3% swap fee
-          </span>
+          </motion.div>
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }
 
-// ==============================
-// 🎨 STYLES
-// ==============================
-const styles = {
-  wrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-    maxWidth: "400px",
-    margin: "0 auto",
-    background: "rgba(20, 20, 20, 0.9)",
-    backdropFilter: "blur(10px)",
-    padding: "20px",
-    borderRadius: "20px",
-    border: "1px solid rgba(255, 255, 255, 0.1)",
-    color: "white",
-    fontFamily: "'Inter', sans-serif",
-  },
+function TokenBox({ label, symbol, balance, value, onChange, onMax, isMobile, editable }) {
+  return (
+    <div style={{
+      background:"rgba(255,255,255,0.04)",
+      border:"1px solid rgba(255,255,255,0.08)",
+      borderRadius:"12px",
+      padding: isMobile ? "10px 12px":"13px 15px",
+    }}>
+      {/* top row */}
+      <div style={{
+        display:"flex", justifyContent:"space-between",
+        alignItems:"center", marginBottom:"6px",
+      }}>
+        <span style={{
+          fontSize: isMobile ? "10px":"11px", color:"#888",
+          textTransform:"uppercase", letterSpacing:"1px",
+        }}>{label}</span>
+        <span style={{
+          fontSize: isMobile ? "11px":"12px", fontWeight:700, color:"#ffb74d",
+          background:"rgba(255,152,0,0.1)", padding:"2px 10px",
+          borderRadius:"20px", border:"1px solid rgba(255,152,0,0.25)",
+        }}>{symbol}</span>
+      </div>
 
-  // HEADER
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  headerIcon: { fontSize: "24px" },
-  headerTitle: {
-    fontSize: "20px",
-    fontWeight: "800",
-    color: "#ffb74d",
-    margin: 0,
-  },
-  closeBtn: {
-    padding: "6px 14px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
-    color: "#aaa",
-    fontSize: "13px",
-    fontWeight: "700",
-    cursor: "pointer",
-    outline: "none",
-  },
+      {/* amount */}
+      {editable ? (
+        <input
+          type="number"
+          placeholder="0.0"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          style={{
+            width:"100%", background:"transparent",
+            border:"none", outline:"none", color:"#fff",
+            fontSize: isMobile ? "20px":"22px",
+            fontWeight:700, caretColor:"#ff9800",
+          }}
+        />
+      ) : (
+        <div style={{
+          fontSize: isMobile ? "20px":"22px", fontWeight:700,
+          color:"#ffcc80", minHeight: isMobile ? "28px":"33px",
+          wordBreak:"break-all",
+        }}>{value}</div>
+      )}
 
-  // PRICE CARD
-  priceCard: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "14px",
-    padding: "16px 20px",
-  },
-  priceRow: {
-    display: "flex",
-    justifyContent: "space-around",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "12px",
-  },
-  priceItem: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "4px",
-  },
-  priceLabel: {
-    fontSize: "11px",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: "1px",
-  },
-  priceValue: {
-    fontSize: "15px",
-    fontWeight: "700",
-    color: "#ffb74d",
-  },
-  priceDivider: {
-    width: "1px",
-    height: "30px",
-    background: "rgba(255,255,255,0.07)",
-  },
-
-  // NOT CONNECTED
-  connectBox: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "14px",
-    padding: "32px 20px",
-    textAlign: "center",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "12px",
-  },
-  connectIcon: { fontSize: "36px" },
-  connectText: {
-    fontSize: "14px",
-    color: "#888",
-    margin: 0,
-    maxWidth: "260px",
-    lineHeight: "1.5",
-  },
-  connectBtn: {
-    padding: "12px 28px",
-    background: "linear-gradient(135deg, #ff9800, #f57c00)",
-    border: "none",
-    borderRadius: "12px",
-    color: "#000",
-    fontWeight: "800",
-    fontSize: "15px",
-    cursor: "pointer",
-    boxShadow: "0 4px 15px rgba(255, 152, 0, 0.3)",
-  },
-
-  // SWAP BOX
-  swapBox: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "16px",
-    padding: "20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  swapField: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "12px",
-    padding: "14px 16px",
-  },
-  swapFieldTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "8px",
-  },
-  swapFieldLabel: {
-    fontSize: "12px",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: "1px",
-  },
-  swapFieldToken: {
-    fontSize: "12px",
-    fontWeight: "700",
-    color: "#ffb74d",
-    background: "rgba(255,152,0,0.1)",
-    padding: "2px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(255,152,0,0.25)",
-  },
-  swapInput: {
-    width: "100%",
-    background: "transparent",
-    border: "none",
-    outline: "none",
-    color: "#fff",
-    fontSize: "22px",
-    fontWeight: "700",
-    boxSizing: "border-box",
-    caretColor: "#ff9800",
-  },
-  swapArrow: {
-    textAlign: "center",
-    fontSize: "20px",
-    color: "#555",
-    padding: "4px 0",
-  },
-  swapOutput: {
-    fontSize: "22px",
-    fontWeight: "700",
-    color: "#ffcc80",
-    minHeight: "33px",
-  },
-
-  // WALLET INFO
-  walletInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginTop: "10px",
-    marginBottom: "5px",
-  },
-  walletDot: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    background: "#00e676",
-    flexShrink: 0,
-    boxShadow: "0 0 5px #00e676",
-  },
-  walletText: {
-    fontSize: "12px",
-    color: "#888",
-    fontFamily: "monospace",
-  },
-
-  // SWAP BUTTON
-  swapBtn: {
-    width: "100%",
-    padding: "14px",
-    background: "linear-gradient(135deg, #ff9800, #f57c00)",
-    border: "none",
-    borderRadius: "12px",
-    color: "#000",
-    fontWeight: "800",
-    fontSize: "15px",
-    cursor: "pointer",
-    boxShadow: "0 4px 15px rgba(255, 152, 0, 0.2)",
-    transition: "all 0.2s ease",
-  },
-
-  // SUCCESS BOX
-  successBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    background: "rgba(0,200,100,0.1)",
-    border: "1px solid rgba(0,200,100,0.2)",
-    borderRadius: "12px",
-    padding: "14px 16px",
-    marginTop: "12px",
-  },
-  successIcon: { fontSize: "22px" },
-  successTitle: {
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#00e676",
-    marginBottom: "2px",
-  },
-  successHash: {
-    fontSize: "12px",
-    color: "#888",
-    wordBreak: "break-all",
-  },
-
-  // INFO FOOTER
-  infoFooter: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 14px",
-    background: "rgba(255,255,255,0.02)",
-    borderRadius: "10px",
-    border: "1px solid rgba(255,255,255,0.05)",
-    opacity: 0.6,
-  },
-  infoDot: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-    background: "#ff9800",
-    flexShrink: 0,
-  },
-  infoText: {
-    fontSize: "12px",
-    color: "#666",
-  },
-};
+      {/* bottom row */}
+      <div style={{
+        display:"flex", justifyContent:"space-between",
+        alignItems:"center", marginTop:"6px",
+      }}>
+        <span style={{ fontSize: isMobile ? "11px":"12px", color:"#666" }}>
+          Balance: {Number(balance).toFixed(4)}
+        </span>
+        {editable && onMax && (
+          <motion.button
+            whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
+            onClick={onMax}
+            style={{
+              padding:"3px 10px",
+              background:"rgba(255,152,0,0.15)",
+              border:"1px solid rgba(255,152,0,0.3)",
+              borderRadius:"6px", color:"#ff9800",
+              fontSize:"11px", fontWeight:800,
+              cursor:"pointer", outline:"none", letterSpacing:"1px",
+            }}
+          >MAX</motion.button>
+        )}
+      </div>
+    </div>
+  );
+}

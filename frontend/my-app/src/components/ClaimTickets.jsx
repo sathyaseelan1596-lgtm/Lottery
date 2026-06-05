@@ -25,7 +25,6 @@ export default function ClaimTickets({ contract, account }) {
     return match;
   };
 
-  // 📡 Fetch lottery
   useEffect(() => {
     if (!contract) return;
     const fetchLottery = async () => {
@@ -48,7 +47,6 @@ export default function ClaimTickets({ contract, account }) {
     return () => clearInterval(interval);
   }, [contract]);
 
-  // ⏳ Countdown
   useEffect(() => {
     if (!endTime) return;
     const interval = setInterval(() => {
@@ -155,7 +153,6 @@ export default function ClaimTickets({ contract, account }) {
     }
   };
 
-  // Status info
   const statusMap = { 0: "Pending", 1: "Open", 2: "Closed", 3: "Claimable" };
   const statusText = statusMap[lotteryStatus] ?? "Unknown";
   const isClaimable = lotteryStatus === 3;
@@ -429,12 +426,7 @@ export default function ClaimTickets({ contract, account }) {
   );
 }
 
-// ==============================
-// 🎨 STYLES
-// ==============================
 const styles = {
-
-  // CARD
   card: {
     background: "rgba(255,255,255,0.03)",
     border: "1px solid rgba(255,255,255,0.07)",
@@ -484,7 +476,6 @@ const styles = {
     lineHeight: "1.5",
   },
 
-  // WINNING NUMBER PREVIEW ON CARD
   winRow: {
     display: "flex",
     alignItems: "center",
@@ -516,7 +507,6 @@ const styles = {
     color: "#ffb74d",
   },
 
-  // TIMER ON CARD
   timerRow: {
     display: "flex",
     alignItems: "center",
@@ -539,7 +529,6 @@ const styles = {
     fontWeight: "700",
   },
 
-  // OVERLAY
   overlay: {
     position: "fixed",
     top: 0,
@@ -554,7 +543,6 @@ const styles = {
     zIndex: 9999,
   },
 
-  // MODAL
   modal: {
     background: "#12121f",
     border: "1px solid rgba(255,255,255,0.1)",
@@ -601,7 +589,6 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.08)",
   },
 
-  // WINNING NUMBER IN MODAL
   winningBox: {
     background: "rgba(255,152,0,0.06)",
     border: "1px solid rgba(255,152,0,0.2)",
@@ -617,7 +604,6 @@ const styles = {
     marginBottom: "10px",
   },
 
-  // TICKET LIST
   ticketList: {
     background: "rgba(255,255,255,0.03)",
     border: "1px solid rgba(255,255,255,0.07)",
@@ -657,7 +643,6 @@ const styles = {
     border: "1px solid rgba(255,152,0,0.25)",
   },
 
-  // BUTTONS
   claimBtn: {
     width: "100%",
     padding: "14px",

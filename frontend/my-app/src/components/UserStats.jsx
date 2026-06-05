@@ -78,7 +78,6 @@ export default function UserStats({ contract, account, lotteryId }) {
       let reward = 0n;
       let bestMatch = 0;
 
-      // ✅ Only calculate matches if winning number is actually drawn
       if (hasDrawn) {
         ticketNumbers.forEach((t) => {
           const match = getMatchDigits(Number(t), winningNumRaw);
@@ -129,7 +128,6 @@ export default function UserStats({ contract, account, lotteryId }) {
     if (contract && account) fetchUserStats();
   }, [contract, account, lotteryId]);
 
-  // ── Derived values ──
   const isClaimable = lotteryStatus === 3;
   const hasDrawn = finalNumber !== null && hasValidWinningNumber(finalNumber);
 
@@ -217,7 +215,6 @@ export default function UserStats({ contract, account, lotteryId }) {
         initial="hidden"
         animate="visible"
       >
-        {/* ── HEADER ── */}
         <motion.div style={styles.header} variants={itemVariants}>
           <div style={styles.headerLeft}>
             <motion.span
@@ -265,7 +262,6 @@ export default function UserStats({ contract, account, lotteryId }) {
           </motion.button>
         </motion.div>
 
-        {/* ── WINNING NUMBER ── */}
         <motion.div style={styles.winningBox} variants={itemVariants}>
           <div style={styles.winningLabel}>🎯 Winning Number</div>
           <div style={styles.digitRow}>
@@ -317,7 +313,6 @@ export default function UserStats({ contract, account, lotteryId }) {
           </AnimatePresence>
         </motion.div>
 
-        {/* ── RESULT BANNER ── */}
         <AnimatePresence>
           {resultConfig && (
             <motion.div
@@ -351,7 +346,6 @@ export default function UserStats({ contract, account, lotteryId }) {
           )}
         </AnimatePresence>
 
-        {/* ── STATS GRID ── */}
         <motion.div style={styles.statsGrid} variants={containerVariants}>
           {[
             {
@@ -372,7 +366,7 @@ export default function UserStats({ contract, account, lotteryId }) {
               icon: "💰",
               label: "My Reward",
               value: hasDrawn
-                ? `${ethers.formatEther(userReward)} CAKE`
+                ? `${ethers.formatEther(userReward)} Luck`
                 : "--",
               color: userReward > 0n ? "#00e676" : "#ffb74d",
             },
@@ -380,7 +374,7 @@ export default function UserStats({ contract, account, lotteryId }) {
               icon: "🏦",
               label: "Total Prize Pool",
               value: hasDrawn
-                ? `${ethers.formatEther(totalRewards)} CAKE`
+                ? `${ethers.formatEther(totalRewards)} Luck`
                 : "--",
               color: "#ffcc80",
             },
@@ -421,7 +415,6 @@ export default function UserStats({ contract, account, lotteryId }) {
           ))}
         </motion.div>
 
-        {/* ── MATCH PROGRESS BAR ── */}
         <AnimatePresence>
           {hasDrawn && (
             <motion.div
@@ -479,7 +472,6 @@ export default function UserStats({ contract, account, lotteryId }) {
           )}
         </AnimatePresence>
 
-        {/* ── STATUS FOOTER ── */}
         <motion.div style={styles.footer} variants={itemVariants}>
           <motion.span
             style={styles.footerDot}
@@ -499,9 +491,6 @@ export default function UserStats({ contract, account, lotteryId }) {
   );
 }
 
-// ==============================
-// 🎨 STYLES
-// ==============================
 const styles = {
   wrapper: {
     display: "flex",

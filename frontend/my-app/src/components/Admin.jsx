@@ -3,9 +3,20 @@ import { ethers } from "ethers";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 
-// ============================================================
-// 🎨 ANIMATIONS
-// ============================================================
+const VAULT_ADDRESS = "0x4fa10b7721d1e98f5ed992382ca59890cb70f5c5";
+const VAULT_ABI = [
+  "function convertToShares(uint256 assets) external view returns (uint256)"
+];
+
+const formatLuck = (value) => {
+  if (!value) return "0";
+  try {
+    return ethers.formatUnits(value, 6);
+  } catch (e) {
+    return "0";
+  }
+};
+
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: (i = 0) => ({
@@ -57,9 +68,6 @@ const modalContentVariant = {
   exit: { opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.15 } },
 };
 
-// ============================================================
-// 🧩 HELPERS
-// ============================================================
 const shortAddr = (addr) =>
   addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "—";
 
@@ -76,9 +84,6 @@ const formatTicketNumber = (num) => {
 
 const ticketDigits = (num) => formatTicketNumber(num).split("");
 
-// ============================================================
-// 🧩 DETAIL MODAL
-// ============================================================
 const DetailModal = ({ isOpen, onClose, title, subtitle, children }) => (
   <AnimatePresence>
     {isOpen && (
@@ -121,9 +126,6 @@ const DetailModal = ({ isOpen, onClose, title, subtitle, children }) => (
   </AnimatePresence>
 );
 
-// ============================================================
-// 🔍 SEARCH BAR
-// ============================================================
 const SearchBar = ({ value, onChange, placeholder }) => (
   <div style={styles.searchWrap}>
     <span style={styles.searchIcon}>🔍</span>
@@ -146,9 +148,6 @@ const SearchBar = ({ value, onChange, placeholder }) => (
   </div>
 );
 
-// ============================================================
-// 🔢 MINI DIGITS
-// ============================================================
 const MiniDigits = ({ number, winningNumber }) => {
   const digs = ticketDigits(number);
   const winDigs = winningNumber ? ticketDigits(winningNumber) : null;
@@ -189,9 +188,6 @@ const MiniDigits = ({ number, winningNumber }) => {
   );
 };
 
-// ============================================================
-// 📍 ADDRESS ROW
-// ============================================================
 const AddressRow = ({ address, badge, extra, index }) => (
   <motion.div
     style={styles.addressRow}
@@ -217,9 +213,6 @@ const AddressRow = ({ address, badge, extra, index }) => (
   </motion.div>
 );
 
-// ============================================================
-// 🎫 TICKET ROW
-// ============================================================
 const TicketRow = ({ ticket, index, winningNumber }) => {
   const [expanded, setExpanded] = useState(false);
   const hasNumber =
@@ -291,7 +284,7 @@ const TicketRow = ({ ticket, index, winningNumber }) => {
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             <span style={styles.ticketLabel}>Reward</span>
             <span style={{ color: "#00e676", fontWeight: 700, fontSize: "13px" }}>
-              {ethers.formatEther(ticket.amount)} CAKE
+              {formatLuck(ticket.amount)} Luck
             </span>
           </div>
         )}
@@ -379,7 +372,7 @@ const TicketRow = ({ ticket, index, winningNumber }) => {
                 <div style={styles.ticketDetailItem}>
                   <span style={styles.ticketLabel}>Claimed Reward</span>
                   <span style={{ ...styles.ticketDetailValue, color: "#00e676" }}>
-                    {ethers.formatEther(ticket.amount)} CAKE
+                    {formatLuck(ticket.amount)} Luck
                   </span>
                 </div>
               )}
@@ -409,9 +402,6 @@ const TicketRow = ({ ticket, index, winningNumber }) => {
   );
 };
 
-// ============================================================
-// 📊 STAT CARD
-// ============================================================
 const Stat = ({
   label,
   value,
@@ -486,9 +476,6 @@ const Stat = ({
   );
 };
 
-// ============================================================
-// 🔘 ACTION BUTTON
-// ============================================================
 const ActionButton = ({ children, onClick, disabled, loading, variant = "primary" }) => {
   const variantStyle =
     variant === "primary"
@@ -546,9 +533,6 @@ const ActionButton = ({ children, onClick, disabled, loading, variant = "primary
   );
 };
 
-// ============================================================
-// 📛 STATUS BADGE
-// ============================================================
 const StatusBadge = ({ status, onClick }) => {
   const cfg = {
     Open: {
@@ -623,9 +607,6 @@ const StatusBadge = ({ status, onClick }) => {
   );
 };
 
-// ============================================================
-// 🔍 EMPTY STATE
-// ============================================================
 const EmptyState = ({ message }) => (
   <div style={styles.emptyState}>
     <span style={{ fontSize: "32px" }}>🔍</span>
@@ -633,9 +614,6 @@ const EmptyState = ({ message }) => (
   </div>
 );
 
-// ============================================================
-// 🏆 MAIN COMPONENT
-// ============================================================
 export default function Admin({ contract, randomGenerator, vrfMock }) {
   const [currentLotteryId, setCurrentLotteryId] = useState(null);
   const [viewingId, setViewingId] = useState(null);
@@ -668,31 +646,50 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     message: "",
   });
 
+  const DEPLOYMENT_BLOCK = 42100000;
+
+  async function safeQueryFilter(contract, filter, startBlock) {
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const latestBlock = await provider.getBlockNumber();
+    
+    let currentBlock = typeof startBlock === 'number' ? startBlock : 0;
+
+    if (currentBlock >= latestBlock) return [];
+
+    const MAX_RANGE = 2000; 
+    let allLogs = [];
+
+    while (currentBlock < latestBlock) {
+      const toBlock = Math.min(currentBlock + MAX_RANGE, latestBlock);
+      try {
+        const logs = await contract.queryFilter(filter, currentBlock, toBlock);
+        allLogs.push(...logs);
+      } catch (err) {
+        console.error(`Error in block range ${currentBlock}-${toBlock}:`, err);
+      }
+      currentBlock = toBlock + 1;
+    }
+    return allLogs;
+  } catch (error) {
+    console.error("safeQueryFilter Critical Error:", error);
+    return [];
+  }
+}
+
   const isViewingCurrent = viewingId === currentLotteryId;
 
-  // ── Fetch all events ──────────────────────────────────────
   const fetchAllEvents = useCallback(
     async (lotteryId, winningNum, firstTicketId, firstTicketIdNextLottery) => {
       if (!contract) return;
       setEventsLoading(true);
 
       try {
-        // ══════════════════════════════════════════════════════
-        // STEP 1: TicketsClaim events
-        // event TicketsClaim(
-        //   address indexed claimer,    → args.claimer  or args[0]
-        //   uint256 amount,             → args.amount   or args[1]
-        //   uint256 indexed lotteryId,  → args.lotteryId or args[2]
-        //   uint256 numberTickets       → args.numberTickets or args[3]
-        // )
-        // ══════════════════════════════════════════════════════
         let claimEvts = [];
         try {
           const claimFilter = contract.filters.TicketsClaim();
-          claimEvts = await contract.queryFilter(claimFilter, 0, "latest");
-          console.log(
-            `[Admin] Total TicketsClaim events found: ${claimEvts.length}`
-          );
+          claimEvts = await safeQueryFilter(contract, claimFilter, DEPLOYMENT_BLOCK);
+          console.log("RAW EVENTS FOUND:", claimEvts);
         } catch (err) {
           console.warn("[Admin] Could not query TicketsClaim events:", err);
         }
@@ -703,13 +700,13 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         const claimRows = [];
 
         claimEvts.forEach((e) => {
-          // Robustly read args — try named first, then positional
           const evtClaimer   = e.args?.claimer      ?? e.args?.[0];
           const evtAmount    = e.args?.amount        ?? e.args?.[1];
           const evtLotteryId = Number(e.args?.lotteryId ?? e.args?.[2]);
           const evtNumTix    = Number(e.args?.numberTickets ?? e.args?.[3] ?? 1);
 
           if (evtLotteryId !== Number(lotteryId)) return;
+          // if (Number(evtLotteryId) !== Number(lotteryId)) return;
 
           totalClaimed += BigInt(evtAmount ?? 0);
           ticketsCt    += evtNumTix;
@@ -724,19 +721,10 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           });
         });
 
-        console.log(
-          `[Admin] TicketsClaim for lottery #${lotteryId}: ` +
-          `${claimRows.length} claims, ${claimUsers.size} unique claimers, ` +
-          `totalClaimed=${ethers.formatEther(totalClaimed)} CAKE`
-        );
-
         setClaimedRewards(totalClaimed);
         setClaimedTickets(ticketsCt);
         setClaimEvents(claimRows);
 
-        // ══════════════════════════════════════════════════════
-        // STEP 2: Enumerate all tickets in this lottery's range
-        // ══════════════════════════════════════════════════════
         const ticketCount = firstTicketIdNextLottery - firstTicketId;
         const enriched = [];
 
@@ -764,10 +752,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                 });
               }
             } catch (_batchErr) {
-              console.warn(
-                `[Admin] Batch failed tickets ${start}–${start + BATCH}:`,
-                _batchErr
-              );
               for (const tid of batchIds) {
                 enriched.push({
                   ticketId:     tid,
@@ -779,31 +763,14 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
             }
           }
 
-          // ══════════════════════════════════════════════════════
-          // STEP 3: TicketsPurchase events → assign owners
-          // event TicketsPurchase(
-          //   address indexed buyer,      → args.buyer   or args[0]
-          //   uint256 indexed lotteryId,  → args.lotteryId or args[1]
-          //   uint256 numberTickets       → args.numberTickets or args[2]
-          // )
-          // ══════════════════════════════════════════════════════
           const allBuyers = new Set();
           try {
             const buyFilter = contract.filters.TicketsPurchase();
-            const buyEvts   = await contract.queryFilter(buyFilter, 0, "latest");
+            const buyEvts   = await safeQueryFilter(contract, buyFilter, DEPLOYMENT_BLOCK);
 
-            console.log(
-              `[Admin] Total TicketsPurchase events: ${buyEvts.length}`
-            );
-
-            // Filter to this lottery only, then assign ownership sequentially
             const lotteryBuyEvts = buyEvts.filter(
               (e) =>
                 Number(e.args?.lotteryId ?? e.args?.[1]) === Number(lotteryId)
-            );
-
-            console.log(
-              `[Admin] TicketsPurchase for lottery #${lotteryId}: ${lotteryBuyEvts.length} events`
             );
 
             let runningId = firstTicketId;
@@ -822,25 +789,12 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
               }
             });
           } catch (_buyErr) {
-            console.warn(
-              "[Admin] Could not fetch TicketsPurchase events:",
-              _buyErr
-            );
+            console.warn("[Admin] Could not fetch TicketsPurchase events:", _buyErr);
           }
 
           setAllTickets(enriched);
 
-          // ══════════════════════════════════════════════════════
-          // STEP 4: Determine winner addresses
-          //
-          // Priority 1 — TicketsClaim events (most accurate, post-claim)
-          // Priority 2 — Tickets with claimed=true and a known owner
-          // Priority 3 — No one has claimed yet (show info message)
-          // ══════════════════════════════════════════════════════
           if (claimUsers.size > 0) {
-            console.log(
-              `[Admin] Winners from TicketsClaim events: ${claimUsers.size}`
-            );
             setUniqueWinners(claimUsers.size);
             setWinnerAddresses([...claimUsers]);
           } else {
@@ -851,16 +805,9 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
             );
 
             if (claimedOwners.size > 0) {
-              console.log(
-                `[Admin] Winners from claimed ticket owners: ${claimedOwners.size}`
-              );
               setUniqueWinners(claimedOwners.size);
               setWinnerAddresses([...claimedOwners]);
             } else {
-              // Winners exist per countWinnersPerBracket but haven't claimed yet
-              console.log(
-                "[Admin] No claims yet — winners exist per bracket data but have not claimed."
-              );
               setUniqueWinners(0);
               setWinnerAddresses([]);
             }
@@ -868,8 +815,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         } else if (ticketCount > 10000) {
           setAllTickets([]);
           toast("Too many tickets to enumerate individually", { icon: "⚠️" });
-
-          // Still set whatever we got from claim events
           setUniqueWinners(claimUsers.size);
           setWinnerAddresses([...claimUsers]);
         } else {
@@ -886,7 +831,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     [contract]
   );
 
-  // ── Fetch lottery by ID ───────────────────────────────────
   const fetchLotteryById = useCallback(
     async (id) => {
       if (!contract || !id || id < 1) return;
@@ -936,25 +880,27 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         setBracketsData(bkts);
         setTreasuryAmount(collected > totalR ? collected - totalR : 0n);
 
+        setDataLoading(false);
+
         const firstId     = Number(lottery.firstTicketId);
         const nextFirstId = Number(lottery.firstTicketIdNextLottery);
         await fetchAllEvents(
-          id,
-          Number(lottery.finalNumber),
-          firstId,
-          nextFirstId
-        );
-      } catch (err) {
-        console.error(err);
-        toast.error(`Failed to fetch lottery #${id}`);
-      } finally {
+        id,
+        Number(lottery.finalNumber),
+        firstId,
+        nextFirstId
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error(`Failed to fetch lottery #${id}`);
+      setDataLoading(false);
+    } finally {
         setDataLoading(false);
       }
     },
     [contract, fetchAllEvents]
   );
 
-  // ── Fetch current lottery ID ──────────────────────────────
   const fetchCurrentId = useCallback(async () => {
     if (!contract) return;
     try {
@@ -983,8 +929,24 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
   useEffect(() => {
     if (viewingId !== null) fetchLotteryById(viewingId);
   }, [viewingId, fetchLotteryById]);
+  useEffect(() => {
+  if (!contract) return;
 
-  // ── Navigation ────────────────────────────────────────────
+  const handleClaimEvent = (claimer, amount, lotteryId, numTickets, event) => {
+    console.log("New Claim Detected!");
+    
+    if (Number(lotteryId) === viewingId) {
+      fetchLotteryById(viewingId); 
+    }
+  };
+
+  contract.on("TicketsClaim", handleClaimEvent);
+
+  return () => {
+    contract.removeListener("TicketsClaim", handleClaimEvent);
+  };
+}, [contract, viewingId, fetchLotteryById]);
+
   const goToLottery = (id) => {
     if (id >= 1 && id <= currentLotteryId) {
       setViewingId(id);
@@ -999,7 +961,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     else toast.error(`Enter a valid ID (1 – ${currentLotteryId})`);
   };
 
-  // ── Confirm wrapper ───────────────────────────────────────
   const confirmAction = (action, title, message) =>
     setConfirmModal({ open: true, action, title, message });
 
@@ -1009,15 +970,21 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     if (action) action();
   };
 
-  // ── Start Lottery ─────────────────────────────────────────
   const handleStartLottery = async () => {
     const tid = toast.loading("🚀 Starting lottery...");
     try {
       setLoading((p) => ({ ...p, start: true }));
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const vault = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, provider);
+
+      const oneUSDC = ethers.parseUnits("1", 6); 
+      const ticketPriceInShares = await vault.convertToShares(oneUSDC);
+
       const endTime = Math.floor(Date.now() / 1000) + 360;
       const tx = await contract.startLottery(
         endTime,
-        ethers.parseEther("1"),
+        ticketPriceInShares,
         500,
         [200, 500, 800, 1000, 2500, 5000],
         500
@@ -1046,7 +1013,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     }
   };
 
-  // ── Close Lottery ─────────────────────────────────────────
   const handleCloseLottery = async () => {
     const tid = toast.loading("🔒 Closing...");
     try {
@@ -1056,7 +1022,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       await tx.wait();
       toast.success(
         <div>
-          <strong>Lottery #{viewingId} Closed! 🔒</strong>
+          <strong>Lottery #{viewingId} Closed! </strong>
           <br />
           <span style={{ fontSize: "12px", opacity: 0.8 }}>
             VRF requested. Proceed to draw.
@@ -1072,9 +1038,8 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     }
   };
 
-  // ── Draw Winner ───────────────────────────────────────────
   const handleDrawWinner = async () => {
-    const tid = toast.loading("🎲 Preparing draw...");
+    const tid = toast.loading("Preparing draw...");
     try {
       setLoading((p) => ({ ...p, draw: true }));
       if (!randomGenerator || !vrfMock) {
@@ -1101,7 +1066,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       ).wait();
       toast.success(
         <div>
-          <strong>Winner Drawn! 🎉</strong>
+          <strong>Winner Drawn!</strong>
           <br />
           <span style={{ fontSize: "12px", opacity: 0.8 }}>
             Lottery #{viewingId} is Claimable!
@@ -1117,7 +1082,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     }
   };
 
-  // ── Helpers ───────────────────────────────────────────────
   const digits =
     finalNumber && finalNumber !== 0
       ? String(finalNumber % 1000000).padStart(6, "0").split("")
@@ -1138,12 +1102,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
   const winningNumberForCompare =
     finalNumber && finalNumber !== 0 ? finalNumber : null;
 
-  // ── Total structure-level winner count ────────────────────
   const structWinnerCount = bracketsData.reduce((s, b) => s + b.winners, 0);
-
-  // ============================================================
-  // 🧩 MODAL CONTENT BUILDERS
-  // ============================================================
 
   const TotalWinnersModal = () => {
     const [search, setSearch] = useState("");
@@ -1158,7 +1117,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           <span style={styles.modalBigLabel}>unique winner wallets</span>
         </div>
 
-        {/* ── Info: winners exist but haven't claimed yet ── */}
         {structWinnerCount > 0 && winnerAddresses.length === 0 && (
           <div style={styles.infoBox}>
             <span>ℹ️</span>
@@ -1195,7 +1153,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                       index={i}
                       address={addr}
                       badge={`${wins.length} claim${wins.length !== 1 ? "s" : ""}`}
-                      extra={`${ethers.formatEther(total)} CAKE`}
+                      extra={`${formatLuck(total)} Luck`}
                     />
                   );
                 })
@@ -1204,7 +1162,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           </>
         )}
 
-        {/* ── Always show per-bracket breakdown ─────────── */}
         {bracketsData.some((b) => b.winners > 0) && (
           <div style={{ marginTop: "16px" }}>
             <div style={styles.sectionTitle}>🏆 Winners Per Bracket</div>
@@ -1232,13 +1189,13 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                       <div style={styles.bStat}>
                         <span style={styles.bStatLabel}>Per Winner</span>
                         <span style={styles.bStatValue}>
-                          {ethers.formatEther(b.rewardPerWinner)} CAKE
+                          {formatLuck(b.rewardPerWinner)} Luck
                         </span>
                       </div>
                       <div style={styles.bStat}>
                         <span style={styles.bStatLabel}>Total in Bracket</span>
                         <span style={{ color: "#ffb74d", fontWeight: 700 }}>
-                          {ethers.formatEther(b.totalReward)} CAKE
+                          {formatLuck(b.totalReward)} Luck
                         </span>
                       </div>
                     </div>
@@ -1311,9 +1268,9 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     <div>
       <div style={styles.modalSummaryRow}>
         <span style={styles.modalBigNum}>
-          {ethers.formatEther(totalRewards ?? 0n)}
+          {formatLuck(totalRewards ?? 0n)}
         </span>
-        <span style={styles.modalBigLabel}>CAKE total prize pool</span>
+        <span style={styles.modalBigLabel}>Luck total prize pool</span>
       </div>
       <div style={styles.bracketList}>
         {bracketsData.map((b, i) => (
@@ -1341,13 +1298,13 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
               <div style={styles.bStat}>
                 <span style={styles.bStatLabel}>Per Winner</span>
                 <span style={styles.bStatValue}>
-                  {ethers.formatEther(b.rewardPerWinner)} CAKE
+                  {formatLuck(b.rewardPerWinner)} Luck
                 </span>
               </div>
               <div style={styles.bStat}>
                 <span style={styles.bStatLabel}>Total</span>
                 <span style={{ color: "#ffb74d", fontWeight: 700 }}>
-                  {ethers.formatEther(b.totalReward)} CAKE
+                  {formatLuck(b.totalReward)} Luck
                 </span>
               </div>
             </div>
@@ -1377,10 +1334,10 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       <div>
         <div style={styles.modalSummaryRow}>
           <span style={styles.modalBigNum}>
-            {ethers.formatEther(claimedRewards ?? 0n)}
+            {formatLuck(claimedRewards ?? 0n)}
           </span>
           <span style={styles.modalBigLabel}>
-            CAKE claimed by {winnerAddresses.length} winners
+            Luck claimed by {winnerAddresses.length} winners
           </span>
         </div>
 
@@ -1409,7 +1366,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                 index={i}
                 address={addr}
                 badge={`${data.tickets} ticket${data.tickets !== 1 ? "s" : ""}`}
-                extra={`${ethers.formatEther(data.total)} CAKE`}
+                extra={`${formatLuck(data.total)} Luck`}
               />
             ))
           )}
@@ -1424,9 +1381,9 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       <div>
         <div style={styles.modalSummaryRow}>
           <span style={styles.modalBigNum}>
-            {ethers.formatEther(unclaimed)}
+            {formatLuck(unclaimed)}
           </span>
-          <span style={styles.modalBigLabel}>CAKE still unclaimed</span>
+          <span style={styles.modalBigLabel}>Luck still unclaimed</span>
         </div>
         <div style={styles.infoBox}>
           <span>📌</span>
@@ -1454,13 +1411,13 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                 <div style={styles.bStat}>
                   <span style={styles.bStatLabel}>Total Pool</span>
                   <span style={styles.bStatValue}>
-                    {ethers.formatEther(b.totalReward)} CAKE
+                    {formatLuck(b.totalReward)} Luck
                   </span>
                 </div>
                 <div style={styles.bStat}>
                   <span style={styles.bStatLabel}>Remaining</span>
                   <span style={{ color: b.totalReward > 0n ? "#ef5350" : "#666", fontWeight: 700 }}>
-                    {ethers.formatEther(b.totalReward)} CAKE
+                    {formatLuck(b.totalReward)} Luck
                   </span>
                 </div>
               </div>
@@ -1480,10 +1437,10 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       <div>
         <div style={styles.modalSummaryRow}>
           <span style={styles.modalBigNum}>
-            {ethers.formatEther(treasuryAmount ?? 0n)}
+            {formatLuck(treasuryAmount ?? 0n)}
           </span>
           <span style={styles.modalBigLabel}>
-            CAKE to treasury ({pct}% of collected)
+            Luck to treasury ({pct}% of collected)
           </span>
         </div>
         <div style={styles.infoBox}>
@@ -1495,9 +1452,9 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         </div>
         <div style={styles.extraInfoGrid}>
           {[
-            { label: "Total Collected",  value: `${ethers.formatEther(totalCollected ?? 0n)} CAKE` },
-            { label: "Total Prize Pool", value: `${ethers.formatEther(totalRewards ?? 0n)} CAKE` },
-            { label: "Treasury Amount",  value: `${ethers.formatEther(treasuryAmount ?? 0n)} CAKE` },
+            { label: "Total Collected",  value: `${formatLuck(totalCollected ?? 0n)} Luck` },
+            { label: "Total Prize Pool", value: `${formatLuck(totalRewards ?? 0n)} Luck` },
+            { label: "Treasury Amount",  value: `${formatLuck(treasuryAmount ?? 0n)} Luck` },
             { label: "Treasury Share",   value: `${pct}%` },
           ].map((row, i) => (
             <div key={i} style={styles.extraInfoItem}>
@@ -1534,20 +1491,20 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       <div>
         <div style={styles.modalSummaryRow}>
           <span style={styles.modalBigNum}>
-            {ethers.formatEther(totalCollected ?? 0n)}
+            {formatLuck(totalCollected ?? 0n)}
           </span>
           <span style={styles.modalBigLabel}>
-            CAKE collected from ticket sales
+            Luck collected from ticket sales
           </span>
         </div>
 
         <div style={styles.extraInfoGrid}>
           {[
             { label: "Tickets Sold",    value: ticketCount > 0 ? ticketCount : "—" },
-            { label: "Price / Ticket",  value: ticketPrice ? `${ethers.formatEther(ticketPrice)} CAKE` : "—" },
-            { label: "Prize Pool",      value: `${ethers.formatEther(totalRewards ?? 0n)} CAKE` },
-            { label: "Treasury",        value: `${ethers.formatEther(treasuryAmount ?? 0n)} CAKE` },
-            { label: "Claimed So Far",  value: `${ethers.formatEther(claimedRewards ?? 0n)} CAKE` },
+            { label: "Price / Ticket",  value: ticketPrice ? `${formatLuck(ticketPrice)} Luck` : "—" },
+            { label: "Prize Pool",      value: `${formatLuck(totalRewards ?? 0n)} Luck` },
+            { label: "Treasury",        value: `${formatLuck(treasuryAmount ?? 0n)} Luck` },
+            { label: "Claimed So Far",  value: `${formatLuck(claimedRewards ?? 0n)} Luck` },
           ].map((row, i) => (
             <div key={i} style={styles.extraInfoItem}>
               <span style={styles.extraInfoLabel}>{row.label}</span>
@@ -1592,7 +1549,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
 
             {winningNumberForCompare && (
               <div style={styles.winLegend}>
-                <span>🎯 Winning:</span>
+                <span>Winning:</span>
                 <MiniDigits number={winningNumberForCompare} />
                 <span style={{ fontSize: "11px", color: "#555" }}>
                   — green = matching digits (right to left)
@@ -1642,7 +1599,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           <span style={styles.modalBigLabel}>distinct winning wallets</span>
         </div>
 
-        {/* ── Info: winners exist but haven't claimed yet ── */}
         {structWinnerCount > 0 && winnerAddresses.length === 0 && (
           <div style={styles.infoBox}>
             <span>ℹ️</span>
@@ -1680,7 +1636,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                       index={i}
                       address={addr}
                       badge={`${tickets} ticket${tickets !== 1 ? "s" : ""}`}
-                      extra={`${ethers.formatEther(total)} CAKE`}
+                      extra={`${formatLuck(total)} Luck`}
                     />
                   );
                 })
@@ -1689,7 +1645,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           </>
         )}
 
-        {/* ── Always show per-bracket breakdown ─────────── */}
         {bracketsData.some((b) => b.winners > 0) && (
           <div style={{ marginTop: "16px" }}>
             <div style={styles.sectionTitle}>🏆 Per-Bracket Breakdown</div>
@@ -1711,13 +1666,13 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                       <div style={styles.bStat}>
                         <span style={styles.bStatLabel}>Per Winner</span>
                         <span style={styles.bStatValue}>
-                          {ethers.formatEther(b.rewardPerWinner)} CAKE
+                          {formatLuck(b.rewardPerWinner)} Luck
                         </span>
                       </div>
                       <div style={styles.bStat}>
                         <span style={styles.bStatLabel}>Total in Bracket</span>
                         <span style={{ color: "#ffb74d", fontWeight: 700 }}>
-                          {ethers.formatEther(b.totalReward)} CAKE
+                          {formatLuck(b.totalReward)} Luck
                         </span>
                       </div>
                     </div>
@@ -1730,7 +1685,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     );
   };
 
-  // ── Stat definitions ──────────────────────────────────────
   const statDefs = [
     {
       icon:         "🏆",
@@ -1751,7 +1705,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     {
       icon:         "💰",
       label:        "Prize Pool",
-      value:        `${ethers.formatEther(totalRewards ?? 0n)} CAKE`,
+      value:        `${formatLuck(totalCollected ?? 0n)} Luck`,
       modalTitle:   "💰 Prize Pool Breakdown",
       modalSubtitle: "Reward distribution across 6 brackets",
       modalContent: <PrizePoolModal />,
@@ -1759,7 +1713,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     {
       icon:         "✅",
       label:        "Claimed",
-      value:        `${ethers.formatEther(claimedRewards ?? 0n)} CAKE`,
+      value:        `${formatLuck(claimedRewards ?? 0n)} Luck`,
       modalTitle:   "✅ Claimed Rewards",
       modalSubtitle: "Sorted by total claimed (highest first)",
       modalContent: <ClaimedModal />,
@@ -1767,7 +1721,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     {
       icon:         "⏳",
       label:        "Unclaimed",
-      value:        `${ethers.formatEther((totalRewards ?? 0n) - (claimedRewards ?? 0n))} CAKE`,
+      value:        `${formatLuck((totalRewards ?? 0n) - (claimedRewards ?? 0n))} Luck`,
       modalTitle:   "⏳ Unclaimed Rewards",
       modalSubtitle: "Per-bracket remaining balances",
       modalContent: <UnclaimedModal />,
@@ -1775,7 +1729,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     {
       icon:         "🏦",
       label:        "Treasury",
-      value:        `${ethers.formatEther(treasuryAmount ?? 0n)} CAKE`,
+      value:        `${formatLuck(treasuryAmount ?? 0n)} Luck`,
       modalTitle:   "🏦 Treasury Allocation",
       modalSubtitle: "Platform fee from this round",
       modalContent: <TreasuryModal />,
@@ -1783,7 +1737,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     {
       icon:         "📦",
       label:        "Total Collected",
-      value:        `${ethers.formatEther(totalCollected ?? 0n)} CAKE`,
+      value:        `${formatLuck(totalCollected ?? 0n)} Luck`,
       modalTitle:   "📦 Total Collected",
       modalSubtitle: "All ticket sale revenue",
       modalContent: <TotalCollectedModal />,
@@ -1798,9 +1752,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
     },
   ];
 
-  // ============================================================
-  // 🖼️ RENDER
-  // ============================================================
   return (
     <>
       <Toaster
@@ -1821,7 +1772,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         }}
       />
 
-      {/* CONFIRM MODAL */}
       <DetailModal
         isOpen={confirmModal.open}
         onClose={() =>
@@ -1854,7 +1804,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         </div>
       </DetailModal>
 
-      {/* STATUS MODAL */}
       <DetailModal
         isOpen={statusModal.open}
         onClose={() => setStatusModal({ open: false, message: "" })}
@@ -1882,10 +1831,9 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         initial="hidden"
         animate="visible"
       >
-        {/* NAVIGATOR */}
         <motion.div style={styles.navigator} variants={fadeUp} custom={0}>
           <div style={styles.navHeader}>
-            <span style={styles.navTitle}>🎰 Admin Panel</span>
+            <span style={styles.navTitle}>Admin Panel</span>
             {!isViewingCurrent && viewingId !== null && (
               <motion.button
                 style={styles.currentBadge}
@@ -1965,7 +1913,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           )}
         </motion.div>
 
-        {/* LOADING */}
         <AnimatePresence>
           {dataLoading && (
             <motion.div
@@ -1986,10 +1933,9 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           )}
         </AnimatePresence>
 
-        {/* TOP ROW */}
         <div style={styles.topRow}>
           <motion.div style={styles.infoCard} variants={fadeUp} custom={0}>
-            <div style={styles.infoLabel}>🆔 Lottery Round</div>
+            <div style={styles.infoLabel}>Lottery Round</div>
             <AnimatePresence mode="wait">
               <motion.div
                 key={viewingId}
@@ -2008,7 +1954,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           </motion.div>
 
           <motion.div style={styles.infoCard} variants={fadeUp} custom={1}>
-            <div style={styles.infoLabel}>📋 Status</div>
+            <div style={styles.infoLabel}>Status</div>
             <StatusBadge
               status={status}
               onClick={(desc) => setStatusModal({ open: true, message: desc })}
@@ -2020,7 +1966,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
             variants={fadeUp}
             custom={2}
           >
-            <div style={styles.infoLabel}>🎯 Winning Number</div>
+            <div style={styles.infoLabel}> Winning Number</div>
             <div style={styles.winningNumber}>
               {digits.map((d, i) => (
                 <motion.span
@@ -2050,7 +1996,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
               {
                 label: "Price",
                 value: ticketPrice
-                  ? `${ethers.formatEther(ticketPrice)} CAKE`
+                  ? `${formatLuck(ticketPrice)} Luck`
                   : "—",
               },
             ].map((r) => (
@@ -2062,7 +2008,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           </motion.div>
         </div>
 
-        {/* STATS GRID */}
         <motion.div style={styles.statsGrid}>
           {statDefs.map((s, i) => (
             <Stat
@@ -2074,7 +2019,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           ))}
         </motion.div>
 
-        {/* BRACKET TABLE */}
         {bracketsData.length > 0 && totalWinners > 0 && (
           <motion.div
             style={styles.tableContainer}
@@ -2111,11 +2055,11 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                         </span>
                       </td>
                       <td style={styles.td}>
-                        {ethers.formatEther(b.rewardPerWinner)} CAKE
+                        {formatLuck(b.rewardPerWinner)} Luck
                       </td>
                       <td style={styles.td}>
                         <span style={{ color: "#ffb74d", fontWeight: 700 }}>
-                          {ethers.formatEther(b.totalReward)} CAKE
+                          {formatLuck(b.totalReward)} Luck
                         </span>
                       </td>
                     </motion.tr>
@@ -2126,7 +2070,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
           </motion.div>
         )}
 
-        {/* ACTION BUTTONS */}
         {isViewingCurrent && (
           <motion.div style={styles.btnRow} variants={fadeUp} custom={6}>
             <ActionButton
@@ -2136,12 +2079,12 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
               onClick={() =>
                 confirmAction(
                   handleStartLottery,
-                  "🚀 Start New Lottery",
-                  `Create lottery #${(currentLotteryId || 0) + 1} with 6-min duration and 1 CAKE ticket price. Continue?`
+                  "Start New Lottery",
+                  `Create lottery #${(currentLotteryId || 0) + 1}. Ticket price will be set to 1 USDC. Continue?`
                 )
               }
             >
-              🚀 Start Lottery
+              Start Lottery
             </ActionButton>
             <ActionButton
               variant="info"
@@ -2155,7 +2098,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                 )
               }
             >
-              🔒 Close Lottery
+              Close Lottery
             </ActionButton>
             <ActionButton
               variant="danger"
@@ -2169,7 +2112,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
                 )
               }
             >
-              🎲 Draw Winner
+              Draw Winner
             </ActionButton>
             <ActionButton
               variant="info"
@@ -2185,9 +2128,6 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
   );
 }
 
-// ============================================================
-// 🎨 STYLES
-// ============================================================
 const styles = {
   wrapper: {
     display: "flex",

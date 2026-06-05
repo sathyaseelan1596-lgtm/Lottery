@@ -50,9 +50,6 @@
   }
 }
 
-/* ==================== */
-/* GLOBAL RESET - FIX   */
-/* ==================== */
 * {
   margin: 0;
   padding: 0;
@@ -74,17 +71,17 @@ body {
 }
 
 #root {
-  width: 100%;              /* Changed from 1126px */
-  max-width: 1520px;        /* Added max-width constraint */
+  width: 100%;          
+  max-width: 1520px;
   margin: 0 auto;
-  padding: 0 10px;          /* Added padding for mobile */
+  padding: 0 10px;
   text-align: center;
   border-inline: none;
   box-sizing: border-box;
 
   @media (max-width: 1024px) {
-    padding: 0 16px;        /* Smaller padding on mobile */
-    border-inline: none;    /* Remove borders on mobile */
+    padding: 0 16px;
+    border-inline: none;
   }
 }
 
@@ -134,9 +131,6 @@ code {
   background: var(--code-bg);
 }
 
-/* ==================== */
-/* CUSTOM SCROLLBAR     */
-/* ==================== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

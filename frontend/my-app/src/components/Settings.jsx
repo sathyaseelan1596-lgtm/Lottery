@@ -9,9 +9,7 @@ export default function SiteSettings({ onClose }) {
   const [lastSaved, setLastSaved] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // Auth state
-  const [authMode, setAuthMode] = useState("login"); // "login" | "register"
+  const [authMode, setAuthMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,7 +18,6 @@ export default function SiteSettings({ onClose }) {
   const [showPassword, setShowPassword] = useState(false);
   const [secretKey, setSecretKey] = useState("");
 
-  // Settings state
   const [settings, setSettings] = useState({
     navLogo: "",
     heroTitle: "",
@@ -28,7 +25,6 @@ export default function SiteSettings({ onClose }) {
     footerText: "",
   });
 
-  // ── Check existing token in localStorage ──
   useEffect(() => {
     const storedToken = localStorage.getItem("adminToken");
     if (storedToken) {
@@ -37,7 +33,6 @@ export default function SiteSettings({ onClose }) {
     }
   }, []);
 
-  // ── Fetch settings when logged in ──
   useEffect(() => {
     if (!isLoggedIn) return;
     const fetchSettings = async () => {
@@ -60,7 +55,6 @@ export default function SiteSettings({ onClose }) {
     fetchSettings();
   }, [isLoggedIn]);
 
-  // ── Handle Login ──
   const handleLogin = async (e) => {
     e.preventDefault();
     setAuthError("");
@@ -89,7 +83,6 @@ export default function SiteSettings({ onClose }) {
     }
   };
 
-  // ── Handle Register ──
   const handleRegister = async (e) => {
     e.preventDefault();
     setAuthError("");
@@ -129,7 +122,6 @@ export default function SiteSettings({ onClose }) {
     }
   };
 
-  // ── Handle Logout ──
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
     setToken(null);
@@ -139,13 +131,11 @@ export default function SiteSettings({ onClose }) {
     setSecretKey("");
   };
 
-  // ── Handle input change ──
   const handleChange = (e) => {
     const { name, value } = e.target;
     setSettings((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ── Save settings ──
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -157,7 +147,6 @@ export default function SiteSettings({ onClose }) {
 
       setLastSaved(new Date().toLocaleTimeString());
 
-      // Show success
       const btn = document.getElementById("save-btn");
       if (btn) {
         btn.textContent = "✅ Saved!";
@@ -175,44 +164,36 @@ export default function SiteSettings({ onClose }) {
     }
   };
 
-  // ══════════════════════════════════════════
-  // RENDER: Not logged in → show auth form
-  // ══════════════════════════════════════════
   if (!isLoggedIn) {
     return (
       <div className="ss-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="ss-modal">
 
-          {/* Header */}
           <div className="ss-header">
-            <h2>⚙️ Site Settings</h2>
+            <h2>Site Settings</h2>
             <button className="ss-close" onClick={onClose}>✕</button>
           </div>
 
-          {/* Auth Form */}
           <div className="ss-auth">
-            {/* Tab Toggle */}
             <div className="auth-tabs">
               <button
                 className={`auth-tab ${authMode === "login" ? "active" : ""}`}
                 onClick={() => { setAuthMode("login"); setAuthError(""); }}
               >
-                🔑 Login
+                Login
               </button>
               <button
                 className={`auth-tab ${authMode === "register" ? "active" : ""}`}
                 onClick={() => { setAuthMode("register"); setAuthError(""); }}
               >
-                📝 Register
+                Register
               </button>
             </div>
 
-            {/* Error */}
             {authError && (
               <div className="auth-error">⚠️ {authError}</div>
             )}
 
-            {/* Login Form */}
             {authMode === "login" && (
               <form onSubmit={handleLogin}>
                 <div className="ss-form-group">
@@ -252,7 +233,6 @@ export default function SiteSettings({ onClose }) {
               </form>
             )}
 
-            {/* Register Form */}
             {authMode === "register" && (
               <form onSubmit={handleRegister}>
                 <div className="ss-form-group">
@@ -325,14 +305,10 @@ export default function SiteSettings({ onClose }) {
     );
   }
 
-  // ══════════════════════════════════════════
-  // RENDER: Logged in → show settings form
-  // ══════════════════════════════════════════
   return (
     <div className="ss-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="ss-modal">
 
-        {/* Header */}
         <div className="ss-header">
           <h2>⚙️ Site Settings</h2>
           <div className="ss-header-actions">
@@ -346,7 +322,6 @@ export default function SiteSettings({ onClose }) {
           </div>
         </div>
 
-        {/* Settings Form */}
         {loading ? (
           <div className="ss-loading">
             <div className="ss-spinner" />
@@ -402,7 +377,6 @@ export default function SiteSettings({ onClose }) {
               />
             </div>
 
-            {/* Preview */}
             <div className="ss-preview">
               <div className="ss-preview-label">📋 Live Preview</div>
               <div className="ss-preview-grid">
@@ -421,7 +395,6 @@ export default function SiteSettings({ onClose }) {
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="ss-actions">
               <button
                 type="button"

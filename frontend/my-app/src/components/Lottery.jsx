@@ -1,11 +1,4 @@
-// src/components/LotteryCarousel.jsx
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ethers } from "ethers";
 import { createPortal } from "react-dom";
 import BuyTickets from "./BuyTickets";
@@ -20,12 +13,7 @@ const STATUS_MAP = {
   3: { label: "Claimable", color: "#60a5fa", bg: "rgba(96,165,250,0.1)" },
 };
 
-const LotteryStatus = {
-  PENDING: 0,
-  OPEN: 1,
-  CLOSE: 2,
-  CLAIMABLE: 3,
-};
+const LotteryStatus = { PENDING: 0, OPEN: 1, CLOSE: 2, CLAIMABLE: 3 };
 
 const INITIAL_LOAD = 7;
 const BATCH_SIZE = 5;
@@ -91,7 +79,7 @@ function parseLotteryStruct(raw, id) {
 function formatCake(val) {
   try {
     if (val === undefined || val === null) return "0.00";
-    return Number(ethers.formatEther(val)).toFixed(2);
+    return Number(ethers.formatUnits(val, 6)).toFixed(2);
   } catch {
     return "0.00";
   }
@@ -394,7 +382,6 @@ function LotteryClosedBanner({ lottery, isLastClosed }) {
   );
 }
 
-/* ═══ COMPACT CARD ═══════════════════════════════════════════ */
 function LotteryCardCompact({
   lottery,
   isCurrent,
@@ -482,7 +469,7 @@ function LotteryCardCompact({
       <div className="lc-pool-hero">
         <span className="lc-pool-label">Prize Pool</span>
         <span className="lc-pool-val">
-          {pool} <span className="lc-pool-unit">CAKE</span>
+          {pool} <span className="lc-pool-unit">Luck</span>
         </span>
       </div>
 
@@ -533,7 +520,7 @@ function LotteryCardCompact({
           {totalWinners > 0 && (
             <span className="lc-preview-stat">🏆 {totalWinners}</span>
           )}
-          <span className="lc-preview-stat">{ticketPr} CAKE</span>
+          <span className="lc-preview-stat">{ticketPr} Luck</span>
         </div>
       </div>
 
@@ -584,7 +571,6 @@ function LotteryCardCompact({
   );
 }
 
-/* ═══ MODAL ══════════════════════════════════════════════════ */
 function LotteryModal({
   lottery,
   isCurrent,
@@ -712,7 +698,6 @@ function LotteryModal({
   return createPortal(
     <div className="lc-modal-overlay" onClick={onClose}>
       <div className="lc-modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* ── Header ──────────────────────────────────────── */}
         <div className="lc-modal-header">
           <div className="lc-modal-title-row">
             <span className="lc-round-badge">Round #{lotteryId}</span>
@@ -721,7 +706,6 @@ function LotteryModal({
               <span className="lc-current-badge">● LIVE</span>
             )}
 
-            {/* ✅ Single unified status chip — no extra badge */}
             <span
               className="lc-status-chip"
               style={{
@@ -739,21 +723,19 @@ function LotteryModal({
           </button>
         </div>
 
-        {/* ── Pool ────────────────────────────────────────── */}
         <div className="lc-pool-hero">
           <span className="lc-pool-label">Prize Pool</span>
           <span className="lc-pool-val">
-            {pool} <span className="lc-pool-unit">CAKE</span>
+            {pool} <span className="lc-pool-unit">Luck</span>
           </span>
         </div>
 
-        {/* ── CTA Area ────────────────────────────────────── */}
         {isOpen && live && account && (
           <button
             className="lc-modal-buy-btn"
             onClick={() => setInnerTab("buy")}
           >
-            🎟️ Buy Tickets — {ticketPr} CAKE each
+            🎟️ Buy Tickets — {ticketPr} Luck each
           </button>
         )}
 
@@ -775,7 +757,6 @@ function LotteryModal({
           </button>
         )}
 
-        {/* ── Tabs ────────────────────────────────────────── */}
         <div className="lc-inner-tabs">
           {tabs.map((tab) => (
             <button
@@ -790,7 +771,6 @@ function LotteryModal({
           ))}
         </div>
 
-        {/* ── Tab Content ─────────────────────────────────── */}
         <div className="lc-inner-content" key={innerTab}>
           {innerTab === "info" && (
             <div className="lc-info-panel">
@@ -824,7 +804,7 @@ function LotteryModal({
                 <div className="lc-stat">
                   <span className="lc-stat-icon">🎫</span>
                   <span className="lc-stat-label">Price</span>
-                  <span className="lc-stat-val">{ticketPr} CAKE</span>
+                  <span className="lc-stat-val">{ticketPr} Luck</span>
                 </div>
 
                 {totalTix !== null && (
@@ -948,7 +928,7 @@ function LotteryModal({
                       Buy Tickets — Round #{lotteryId}
                     </h3>
                     <p className="lc-action-sub">
-                      {ticketPr} CAKE per ticket · Pool: {pool} CAKE
+                      {ticketPr} Luck per ticket · Pool: {pool} Luck
                     </p>
                   </div>
                   <BuyTickets contract={contract} />
@@ -1008,7 +988,6 @@ function LotteryModal({
   );
 }
 
-/* ═══ MAIN CAROUSEL ══════════════════════════════════════════ */
 export default function LotteryCarousel({ contract, account }) {
   const [lotteryMap, setLotteryMap] = useState({});
   const [currentId, setCurrentId] = useState(null);

@@ -14,13 +14,12 @@ export function useContract() {
   const [vrfMockContract, setVrfMockContract] = useState(null);
   const [account, setAccount] = useState(null);
 
-  // ✅ NEW: Helper to setup contracts in READ-ONLY mode (for guests)
   const setupReadOnlyContracts = async () => {
     if (!window.ethereum) return;
     try {
       const prov = new ethers.BrowserProvider(window.ethereum);
+      console.log(await prov.getNetwork());
       setProvider(prov);
-      // We pass 'prov' instead of 'signer'. This allows calling view functions.
       setContract(new ethers.Contract(CONTRACT_ADDRESS, ABI, prov));
       setRngContract(new ethers.Contract(RNG_ADDRESS, RNG_ABI, prov));
       setVrfMockContract(new ethers.Contract(VRF_MOCK_ADDRESS, VRF_MOCK_ABI, prov));
@@ -29,7 +28,6 @@ export function useContract() {
     }
   };
 
-  // ✅ MODIFIED: Setup contracts with a signer (for connected users)
   const setupWriteContracts = async (prov) => {
     const signer = await prov.getSigner();
     const address = await signer.getAddress();
@@ -37,13 +35,11 @@ export function useContract() {
     setProvider(prov);
     setSigner(signer);
     setAccount(address);
-    // Using signer here allows sending transactions (buy tickets, etc.)
     setContract(new ethers.Contract(CONTRACT_ADDRESS, ABI, signer));
     setRngContract(new ethers.Contract(RNG_ADDRESS, RNG_ABI, signer));
     setVrfMockContract(new ethers.Contract(VRF_MOCK_ADDRESS, VRF_MOCK_ABI, signer));
   };
 
-  // ✅ CONNECT WALLET
   const connectWallet = async () => {
     if (!window.ethereum) {
       const url = window.location.href;
@@ -67,15 +63,12 @@ export function useContract() {
     }
   };
 
-  // ✅ AUTO CONNECT & READ-ONLY INIT
   useEffect(() => {
     const init = async () => {
       if (!window.ethereum) return;
 
-      // 1. ALWAYS initialize read-only contracts first so guests see data
       await setupReadOnlyContracts();
 
-      // 2. Check if we should auto-connect the wallet
       const isDisconnected = localStorage.getItem("isDisconnected");
       if (isDisconnected) return;
 
@@ -96,7 +89,6 @@ export function useContract() {
     init();
   }, []);
 
-  // ✅ LISTEN for account/chain changes
   useEffect(() => {
     if (!window.ethereum) return;
 
@@ -125,12 +117,10 @@ export function useContract() {
     };
   }, []);
 
-  // ✅ DISCONNECT
   const disconnectWallet = () => {
     localStorage.setItem("isDisconnected", "true");
     setAccount(null);
     setSigner(null);
-    // IMPORTANT: Revert to Read-Only mode instead of setting contracts to null
     setupReadOnlyContracts(); 
   };
 

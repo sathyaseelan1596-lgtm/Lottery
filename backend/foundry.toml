@@ -4,7 +4,7 @@ out = "out"
 libs = ["lib"]
 
 [rpc_endpoints]
-sepolia = "https://eth-sepolia.g.alchemy.com/v2/1ZP_X0aUFVXuPRbaijElD"
+sepolia = "https://base-sepolia.g.alchemy.com/v2/WRnoAApDTFK80G5gGW3t8"
 
 [etherscan]
 sepolia = { key = "${ETHER_KEY}" }

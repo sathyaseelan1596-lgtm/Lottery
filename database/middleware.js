@@ -1,11 +1,9 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// ✅ Verify token middleware
 const protect = (req, res, next) => {
   try {
-    // Get token from header
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -17,7 +15,6 @@ const protect = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
-    // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     req.admin = decoded;
     next();

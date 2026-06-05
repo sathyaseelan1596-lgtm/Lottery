@@ -1,59 +1,47 @@
 import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
 import { useContract } from "./useContract";
 import Admin from "./components/Admin";
 import SwapUI from "./components/BuyToken";
+import VaultUI from "./components/VaultUI";
 import LotteryCarousel from "./components/Lottery";
 import "./App.css";
 import "./components/Lottery.css";
-import axios from "axios";
-import SiteSettings from "./components/Settings";
-import API from "./config";
 
 export default function App() {
   const {
     contract, rngContract, vrfMockContract,
     account, connectWallet, disconnectWallet,
   } = useContract();
+  
   const [isAdmin, setIsAdmin] = useState(false);
   const [endTime, setEndTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState("");
   const [lotteryId, setLotteryId] = useState(null);
   const [collected, setCollected] = useState("0");
-  const [showSwapModal, setShowSwapModal] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [tokenMethod, setTokenMethod] = useState(null);
+  
+  // STATIC SETTINGS - Replaced axios/Node server
+  const siteSettings = {
+    navLogo: "🎟️ Lucky Lottery",
+    heroTitle: "The Most Transparent Lottery on Chain",
+    heroSub: "Buy tickets, trust the VRF, and win massive rewards instantly.",
+    footerText: "© 2026 Lucky Chain Lottery. Built for the Community.",
+  };
 
-  const [siteSettings, setSiteSettings] = useState({
-    navLogo: "🎟️ Loading...",
-    heroTitle: "Loading...",
-    heroSub: "Loading...",
-    footerText: "© 2025 Lucky Chain Lottery",
-  });
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const response = await axios.get(`${API}/api/settings`);
-        if (response.data) {
-          setSiteSettings(response.data);
-        }
-      } catch (err) {
-        console.error("Error fetching site settings:", err);
-      }
-    };
-    fetchSettings();
-  }, []);
-
+  // Check if current connected user is the contract owner
   useEffect(() => {
     const checkAdmin = async () => {
       if (!contract || !account) return;
       try {
         const owner = await contract.owner();
         setIsAdmin(owner.toLowerCase() === account.toLowerCase());
-      } catch (err) { console.error(err); }
+      } catch (err) { console.error("Admin check failed:", err); }
     };
     checkAdmin();
   }, [contract, account]);
 
+  // Fetch Lottery Data from Smart Contract
   useEffect(() => {
     if (!contract) return;
     const fetchData = async () => {
@@ -65,19 +53,24 @@ export default function App() {
           setEndTime(Number(lottery.endTime));
           setCollected(lottery.amountCollectedInCake.toString());
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { console.error("Contract data fetch failed:", err); }
     };
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(fetchData, 10000); // Poll every 10s
     return () => clearInterval(interval);
   }, [contract]);
 
+  // Countdown Timer Logic
   useEffect(() => {
     if (!endTime) return;
     const interval = setInterval(() => {
       const now = Math.floor(Date.now() / 1000);
       const diff = endTime - now;
-      if (diff <= 0) { setTimeLeft("⏰ Ended"); clearInterval(interval); return; }
+      if (diff <= 0) { 
+        setTimeLeft("⏰ Ended"); 
+        clearInterval(interval); 
+        return; 
+      }
       const h = Math.floor(diff / 3600);
       const m = Math.floor((diff % 3600) / 60);
       const s = diff % 60;
@@ -87,16 +80,16 @@ export default function App() {
   }, [endTime]);
 
   const prizePool = collected !== "0"
-    ? `${(Number(collected) / 1e18).toFixed(2)} CAKE`
-    : "-- CAKE";
+    ? `${ethers.formatUnits(collected, 6)} Luck`
+    : "-- Luck";
 
   return (
     <div className="page">
       <nav className="navbar">
         <div className="nav-logo">{siteSettings.navLogo}</div>
         <div className="nav-right">
-          <button onClick={() => setShowSwapModal(true)} className="get-cake-btn">
-            🥇Get Lucky
+          <button onClick={() => setTokenMethod('choice')} className="get-cake-btn">
+            🥇 Get Lucky
           </button>
           {account ? (
             <div className="nav-account-row">
@@ -110,36 +103,49 @@ export default function App() {
         </div>
       </nav>
 
-      {showSwapModal && (
-        <div className="swap-overlay">
-          <div className="swap-modal">
-            <div className="swap-modal-header">
-              <h3 className="swap-modal-title"/>
-            </div>
-            <SwapUI onClose={() => setShowSwapModal(false)} />
+      {tokenMethod && (
+        <div className="swap-overlay"> 
+          <div className="swap-scroll">
+            {tokenMethod === 'choice' && (
+              <div className="method-selector-modal"> 
+                <h3>How to get Luck Tokens?</h3>
+                <div className="choice-grid">
+                  <button onClick={() => setTokenMethod('vault')} className="choice-card">
+                    <span>🏦</span>
+                    <h4>Vault Deposit</h4>
+                    <p>Mint tokens directly via USDC</p>
+                  </button>
+                  <button onClick={() => setTokenMethod('swap')} className="choice-card">
+                    <span>🔄</span>
+                    <h4>Quick Swap</h4>
+                    <p>Buy tokens via Uniswap V3</p>
+                  </button>
+                </div>
+                <button onClick={() => setTokenMethod(null)} className="close-btn">Cancel</button>
+              </div>
+            )}
+
+            {tokenMethod === 'swap' && (
+              <SwapUI onClose={() => setTokenMethod(null)} />
+            )}
+
+            {tokenMethod === 'vault' && (
+              <VaultUI account={account} onClose={() => setTokenMethod(null)} />
+            )}
           </div>
         </div>
       )}
 
+      {/* ADMIN SECTION */}
       {account && isAdmin && (
         <section className="admin-section">
           <div className="admin-box">
             <h2 className="admin-title">Admin Panel</h2>
-            <button
-          className="settings-btn"
-          onClick={() => setShowSettings(true)}
-        >
-          ⚙️ Site Settings
-        </button>
             <Admin contract={contract} randomGenerator={rngContract} vrfMock={vrfMockContract} />
           </div>
-          {showSettings && (
-      <SiteSettings onClose={() => setShowSettings(false)} />
-    )}
         </section>
       )}
 
-      {/* Lottery Carousel — below navbar, shows ALL rounds */}
       <LotteryCarousel contract={contract} account={account} />
 
       <section className="hero">
@@ -191,7 +197,7 @@ export default function App() {
 
       <section className="prize-section">
         <h2 className="section-title">Prize Breakdown</h2>
-        <p className="section-sub">Match numbers from right to left to win bigger prizes</p>
+        <p className="prize-section-sub">Match numbers from right to left to win bigger prizes</p>
         <div className="prize-grid">
           {[
             { match:"Match all 6", pct:"50%", stars:6 },
@@ -235,7 +241,7 @@ export default function App() {
         <h2 className="section-title">FAQ</h2>
         <div className="faq-list">
           {[
-            { q:"What token do I need?", a:"You need CAKE tokens on BNB Smart Chain to buy tickets." },
+            { q:"What token do I need?", a:"You need Luck tokens to buy tickets." },
             { q:"How are numbers drawn?", a:"We use Chainlink VRF for verifiable, tamper-proof randomness." },
             { q:"When does the round end?", a:"Check the countdown timer above — it updates every second." },
             { q:"What if nobody wins jackpot?", a:"Unclaimed prizes roll over to the next round automatically." },
@@ -251,8 +257,8 @@ export default function App() {
       <footer className="footer">
         <p className="footer-text">{siteSettings.footerText}</p>
         <p className="footer-links">
-          <a href="https://sepolia.etherscan.io/address/0xf951de8724aeea9b3a9d8efb15c7c1158c6205d5#code" className="footer-link">Smart Contract</a>{" · "}
-          <a href="https://github.com/sathyaseelan1596-lgtm/Lottery" className="footer-link">GitHub</a>
+          <a href="https://sepolia.etherscan.io/address/0xf951de8724aeea9b3a9d8efb15c7c1158c6205d5#code" target="_blank" rel="noreferrer" className="footer-link">Smart Contract</a>{" · "}
+          <a href="https://github.com/sathyaseelan1596-lgtm/Lottery" target="_blank" rel="noreferrer" className="footer-link">GitHub</a>
         </p>
       </footer>
     </div>
