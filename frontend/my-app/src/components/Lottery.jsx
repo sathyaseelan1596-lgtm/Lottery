@@ -1151,22 +1151,20 @@ export default function LotteryCarousel({ contract, account }) {
   }, [contract, loadedMax, loadingNewer, fetchBatch]);
 
   useEffect(() => {
-    if (loading || sortedIds.length === 0) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            if (entry.target === leftSentinelRef.current) loadOlder();
-            else if (entry.target === rightSentinelRef.current) loadNewer();
-          }
-        });
-      },
-      { root: trackRef.current, rootMargin: "0px 200px", threshold: 0.1 }
-    );
-    if (leftSentinelRef.current) observer.observe(leftSentinelRef.current);
-    if (rightSentinelRef.current) observer.observe(rightSentinelRef.current);
-    return () => observer.disconnect();
-  }, [loading, sortedIds.length, loadOlder, loadNewer]);
+  if (!trackRef.current || modalLotteryId !== null) return;
+
+  const slides = trackRef.current.querySelectorAll(".lc-slide");
+  
+  const target = slides[activeIdx]; 
+
+  if (target) {
+    target.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }
+}, [activeIdx, modalLotteryId, sortedIds.length]);
 
   useEffect(() => {
     if (!trackRef.current || modalLotteryId !== null) return;
@@ -1222,13 +1220,23 @@ export default function LotteryCarousel({ contract, account }) {
         <p>Connect your wallet to view lottery rounds.</p>
       </div>
     );
-  if (loading)
-    return (
-      <div className="lc-placeholder">
-        <div className="lc-loader" />
-        <p>Loading lottery data…</p>
+  if (loading) {
+  return (
+    <div className="lc-root">
+      <div className="lc-header-bar" style={{ opacity: 0.5 }}>
+         <h2 className="lc-main-title">Loading Rounds...</h2>
       </div>
-    );
+      <div className="lc-viewport" style={{ minHeight: '340px', display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'center' }}>
+        {/* Render 3 fake cards */}
+        {[1, 2, 3].map(i => (
+          <div key={i} className="lc-card" style={{ background: '#27272a', border: 'none', opacity: 0.3, cursor: 'default' }}>
+            <div style={{ height: '200px' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
   if (error)
     return (
       <div className="lc-placeholder lc-placeholder--err">
@@ -1264,12 +1272,12 @@ export default function LotteryCarousel({ contract, account }) {
         </div>
         <div className="lc-header-actions">
           <button
-            className="lc-nav-quick-btn"
-            onClick={() => goTo(0)}
-            disabled={activeIdx === 0}
-          >
-            ⏮ Oldest
-          </button>
+  className="lc-nav-quick-btn"
+  onClick={() => goTo(0)}
+  disabled={activeIdx === 0}
+>
+  ⏮ Oldest
+</button>
 
           <button
             className={`lc-nav-quick-btn ${
@@ -1292,12 +1300,12 @@ export default function LotteryCarousel({ contract, account }) {
           </button>
 
           <button
-            className="lc-nav-quick-btn"
-            onClick={() => goTo(sortedIds.length - 1)}
-            disabled={activeIdx === sortedIds.length - 1}
-          >
-            Newest ⏭
-          </button>
+  className="lc-nav-quick-btn"
+  onClick={() => goTo(sortedIds.length - 1)}
+  disabled={activeIdx === sortedIds.length - 1}
+>
+  Newest ⏭
+</button>
           <button className="lc-refresh-btn" onClick={initialLoad}>
             ↻
           </button>
@@ -1394,7 +1402,7 @@ export default function LotteryCarousel({ contract, account }) {
         </div>
       )}
 
-      {sortedIds.length <= 20 && (
+      {/* {sortedIds.length <= 20 && (
         <div className="lc-dots">
           {sortedIds.map((id, i) => (
             <button
@@ -1407,9 +1415,9 @@ export default function LotteryCarousel({ contract, account }) {
             />
           ))}
         </div>
-      )}
+      )} */}
 
-      <div className="lc-footer">
+      {/* <div className="lc-footer">
         {(loadingOlder || loadingNewer) && (
           <div className="lc-loading-more">
             <div className="lc-loader-sm" />
@@ -1419,7 +1427,7 @@ export default function LotteryCarousel({ contract, account }) {
         <span className="lc-footer-hint">
           Scroll to load all {totalCount} rounds · Tap a card to expand
         </span>
-      </div>
+      </div> */}
 
       {modalLotteryId !== null && lotteryMap[modalLotteryId] && (
         <LotteryModal

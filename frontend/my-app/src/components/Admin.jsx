@@ -679,157 +679,157 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
 
   const isViewingCurrent = viewingId === currentLotteryId;
 
-  const fetchAllEvents = useCallback(
-    async (lotteryId, winningNum, firstTicketId, firstTicketIdNextLottery) => {
-      if (!contract) return;
-      setEventsLoading(true);
+  // const fetchAllEvents = useCallback(
+  //   async (lotteryId, winningNum, firstTicketId, firstTicketIdNextLottery) => {
+  //     if (!contract) return;
+  //     setEventsLoading(true);
 
-      try {
-        let claimEvts = [];
-        try {
-          const claimFilter = contract.filters.TicketsClaim();
-          claimEvts = await safeQueryFilter(contract, claimFilter, DEPLOYMENT_BLOCK);
-          console.log("RAW EVENTS FOUND:", claimEvts);
-        } catch (err) {
-          console.warn("[Admin] Could not query TicketsClaim events:", err);
-        }
+  //     try {
+  //       let claimEvts = [];
+  //       try {
+  //         const claimFilter = contract.filters.TicketsClaim();
+  //         claimEvts = await safeQueryFilter(contract, claimFilter, DEPLOYMENT_BLOCK);
+  //         console.log("RAW EVENTS FOUND:", claimEvts);
+  //       } catch (err) {
+  //         console.warn("[Admin] Could not query TicketsClaim events:", err);
+  //       }
 
-        let totalClaimed = 0n;
-        let ticketsCt = 0;
-        const claimUsers = new Set();
-        const claimRows = [];
+  //       let totalClaimed = 0n;
+  //       let ticketsCt = 0;
+  //       const claimUsers = new Set();
+  //       const claimRows = [];
 
-        claimEvts.forEach((e) => {
-          const evtClaimer   = e.args?.claimer      ?? e.args?.[0];
-          const evtAmount    = e.args?.amount        ?? e.args?.[1];
-          const evtLotteryId = Number(e.args?.lotteryId ?? e.args?.[2]);
-          const evtNumTix    = Number(e.args?.numberTickets ?? e.args?.[3] ?? 1);
+  //       claimEvts.forEach((e) => {
+  //         const evtClaimer   = e.args?.claimer      ?? e.args?.[0];
+  //         const evtAmount    = e.args?.amount        ?? e.args?.[1];
+  //         const evtLotteryId = Number(e.args?.lotteryId ?? e.args?.[2]);
+  //         const evtNumTix    = Number(e.args?.numberTickets ?? e.args?.[3] ?? 1);
 
-          if (evtLotteryId !== Number(lotteryId)) return;
-          // if (Number(evtLotteryId) !== Number(lotteryId)) return;
+  //         if (evtLotteryId !== Number(lotteryId)) return;
+  //         // if (Number(evtLotteryId) !== Number(lotteryId)) return;
 
-          totalClaimed += BigInt(evtAmount ?? 0);
-          ticketsCt    += evtNumTix;
-          if (evtClaimer) claimUsers.add(evtClaimer);
+  //         totalClaimed += BigInt(evtAmount ?? 0);
+  //         ticketsCt    += evtNumTix;
+  //         if (evtClaimer) claimUsers.add(evtClaimer);
 
-          claimRows.push({
-            claimer: evtClaimer,
-            amount:  BigInt(evtAmount ?? 0),
-            numTix:  evtNumTix,
-            bracket: null,
-            txHash:  e.transactionHash,
-          });
-        });
+  //         claimRows.push({
+  //           claimer: evtClaimer,
+  //           amount:  BigInt(evtAmount ?? 0),
+  //           numTix:  evtNumTix,
+  //           bracket: null,
+  //           txHash:  e.transactionHash,
+  //         });
+  //       });
 
-        setClaimedRewards(totalClaimed);
-        setClaimedTickets(ticketsCt);
-        setClaimEvents(claimRows);
+  //       setClaimedRewards(totalClaimed);
+  //       setClaimedTickets(ticketsCt);
+  //       setClaimEvents(claimRows);
 
-        const ticketCount = firstTicketIdNextLottery - firstTicketId;
-        const enriched = [];
+  //       const ticketCount = firstTicketIdNextLottery - firstTicketId;
+  //       const enriched = [];
 
-        if (ticketCount > 0 && ticketCount <= 10000) {
-          const BATCH = 300;
-          const allIds = [];
-          for (let t = firstTicketId; t < firstTicketIdNextLottery; t++) {
-            allIds.push(t);
-          }
+  //       if (ticketCount > 0 && ticketCount <= 10000) {
+  //         const BATCH = 300;
+  //         const allIds = [];
+  //         for (let t = firstTicketId; t < firstTicketIdNextLottery; t++) {
+  //           allIds.push(t);
+  //         }
 
-          for (let start = 0; start < allIds.length; start += BATCH) {
-            const batchIds = allIds.slice(start, start + BATCH);
-            try {
-              const result =
-                await contract.viewNumbersAndStatusesForTicketIds(batchIds);
-              const numbers  = result[0];
-              const statuses = result[1];
+  //         for (let start = 0; start < allIds.length; start += BATCH) {
+  //           const batchIds = allIds.slice(start, start + BATCH);
+  //           try {
+  //             const result =
+  //               await contract.viewNumbersAndStatusesForTicketIds(batchIds);
+  //             const numbers  = result[0];
+  //             const statuses = result[1];
 
-              for (let idx = 0; idx < batchIds.length; idx++) {
-                enriched.push({
-                  ticketId:     batchIds[idx],
-                  ticketNumber: Number(numbers[idx]),
-                  claimed:      statuses[idx],
-                  owner:        null,
-                });
-              }
-            } catch (_batchErr) {
-              for (const tid of batchIds) {
-                enriched.push({
-                  ticketId:     tid,
-                  ticketNumber: null,
-                  claimed:      false,
-                  owner:        null,
-                });
-              }
-            }
-          }
+  //             for (let idx = 0; idx < batchIds.length; idx++) {
+  //               enriched.push({
+  //                 ticketId:     batchIds[idx],
+  //                 ticketNumber: Number(numbers[idx]),
+  //                 claimed:      statuses[idx],
+  //                 owner:        null,
+  //               });
+  //             }
+  //           } catch (_batchErr) {
+  //             for (const tid of batchIds) {
+  //               enriched.push({
+  //                 ticketId:     tid,
+  //                 ticketNumber: null,
+  //                 claimed:      false,
+  //                 owner:        null,
+  //               });
+  //             }
+  //           }
+  //         }
 
-          const allBuyers = new Set();
-          try {
-            const buyFilter = contract.filters.TicketsPurchase();
-            const buyEvts   = await safeQueryFilter(contract, buyFilter, DEPLOYMENT_BLOCK);
+  //         const allBuyers = new Set();
+  //         try {
+  //           const buyFilter = contract.filters.TicketsPurchase();
+  //           const buyEvts   = await safeQueryFilter(contract, buyFilter, DEPLOYMENT_BLOCK);
 
-            const lotteryBuyEvts = buyEvts.filter(
-              (e) =>
-                Number(e.args?.lotteryId ?? e.args?.[1]) === Number(lotteryId)
-            );
+  //           const lotteryBuyEvts = buyEvts.filter(
+  //             (e) =>
+  //               Number(e.args?.lotteryId ?? e.args?.[1]) === Number(lotteryId)
+  //           );
 
-            let runningId = firstTicketId;
-            lotteryBuyEvts.forEach((e) => {
-              const buyer = e.args?.buyer ?? e.args?.[0];
-              const count = Number(e.args?.numberTickets ?? e.args?.[2] ?? 1);
+  //           let runningId = firstTicketId;
+  //           lotteryBuyEvts.forEach((e) => {
+  //             const buyer = e.args?.buyer ?? e.args?.[0];
+  //             const count = Number(e.args?.numberTickets ?? e.args?.[2] ?? 1);
 
-              if (buyer) allBuyers.add(buyer);
+  //             if (buyer) allBuyers.add(buyer);
 
-              for (let t = 0; t < count; t++) {
-                const ticket = enriched.find(
-                  (tk) => tk.ticketId === runningId
-                );
-                if (ticket) ticket.owner = buyer;
-                runningId++;
-              }
-            });
-          } catch (_buyErr) {
-            console.warn("[Admin] Could not fetch TicketsPurchase events:", _buyErr);
-          }
+  //             for (let t = 0; t < count; t++) {
+  //               const ticket = enriched.find(
+  //                 (tk) => tk.ticketId === runningId
+  //               );
+  //               if (ticket) ticket.owner = buyer;
+  //               runningId++;
+  //             }
+  //           });
+  //         } catch (_buyErr) {
+  //           console.warn("[Admin] Could not fetch TicketsPurchase events:", _buyErr);
+  //         }
 
-          setAllTickets(enriched);
+  //         setAllTickets(enriched);
 
-          if (claimUsers.size > 0) {
-            setUniqueWinners(claimUsers.size);
-            setWinnerAddresses([...claimUsers]);
-          } else {
-            const claimedOwners = new Set(
-              enriched
-                .filter((t) => t.claimed && t.owner)
-                .map((t) => t.owner)
-            );
+  //         if (claimUsers.size > 0) {
+  //           setUniqueWinners(claimUsers.size);
+  //           setWinnerAddresses([...claimUsers]);
+  //         } else {
+  //           const claimedOwners = new Set(
+  //             enriched
+  //               .filter((t) => t.claimed && t.owner)
+  //               .map((t) => t.owner)
+  //           );
 
-            if (claimedOwners.size > 0) {
-              setUniqueWinners(claimedOwners.size);
-              setWinnerAddresses([...claimedOwners]);
-            } else {
-              setUniqueWinners(0);
-              setWinnerAddresses([]);
-            }
-          }
-        } else if (ticketCount > 10000) {
-          setAllTickets([]);
-          toast("Too many tickets to enumerate individually", { icon: "⚠️" });
-          setUniqueWinners(claimUsers.size);
-          setWinnerAddresses([...claimUsers]);
-        } else {
-          setAllTickets([]);
-          setUniqueWinners(claimUsers.size);
-          setWinnerAddresses([...claimUsers]);
-        }
-      } catch (err) {
-        console.error("[Admin] Event fetch error:", err);
-      } finally {
-        setEventsLoading(false);
-      }
-    },
-    [contract]
-  );
+  //           if (claimedOwners.size > 0) {
+  //             setUniqueWinners(claimedOwners.size);
+  //             setWinnerAddresses([...claimedOwners]);
+  //           } else {
+  //             setUniqueWinners(0);
+  //             setWinnerAddresses([]);
+  //           }
+  //         }
+  //       } else if (ticketCount > 10000) {
+  //         setAllTickets([]);
+  //         toast("Too many tickets to enumerate individually", { icon: "⚠️" });
+  //         setUniqueWinners(claimUsers.size);
+  //         setWinnerAddresses([...claimUsers]);
+  //       } else {
+  //         setAllTickets([]);
+  //         setUniqueWinners(claimUsers.size);
+  //         setWinnerAddresses([...claimUsers]);
+  //       }
+  //     } catch (err) {
+  //       console.error("[Admin] Event fetch error:", err);
+  //     } finally {
+  //       setEventsLoading(false);
+  //     }
+  //   },
+  //   [contract]
+  // );
 
   const fetchLotteryById = useCallback(
     async (id) => {
@@ -882,14 +882,14 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
 
         setDataLoading(false);
 
-        const firstId     = Number(lottery.firstTicketId);
-        const nextFirstId = Number(lottery.firstTicketIdNextLottery);
-        await fetchAllEvents(
-        id,
-        Number(lottery.finalNumber),
-        firstId,
-        nextFirstId
-      );
+      //   const firstId     = Number(lottery.firstTicketId);
+      //   const nextFirstId = Number(lottery.firstTicketIdNextLottery);
+      //   await fetchAllEvents(
+      //   id,
+      //   Number(lottery.finalNumber),
+      //   firstId,
+      //   nextFirstId
+      // );
     } catch (err) {
       console.error(err);
       toast.error(`Failed to fetch lottery #${id}`);
@@ -898,7 +898,7 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
         setDataLoading(false);
       }
     },
-    [contract, fetchAllEvents]
+    [contract]
   );
 
   const fetchCurrentId = useCallback(async () => {
@@ -929,23 +929,60 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
   useEffect(() => {
     if (viewingId !== null) fetchLotteryById(viewingId);
   }, [viewingId, fetchLotteryById]);
-  useEffect(() => {
-  if (!contract) return;
+//   useEffect(() => {
+//   if (!contract || !viewingId) return;
 
-  const handleClaimEvent = (claimer, amount, lotteryId, numTickets, event) => {
-    console.log("New Claim Detected!");
-    
-    if (Number(lotteryId) === viewingId) {
-      fetchLotteryById(viewingId); 
-    }
-  };
+//   let lastCheckedBlock = 0;
 
-  contract.on("TicketsClaim", handleClaimEvent);
+//   // 1. Define the polling function
+//   const pollForClaims = async () => {
+//     try {
+//       const provider = new ethers.BrowserProvider(window.ethereum);
+//       const currentBlock = await provider.getBlockNumber();
 
-  return () => {
-    contract.removeListener("TicketsClaim", handleClaimEvent);
-  };
-}, [contract, viewingId, fetchLotteryById]);
+//       // On first run, just set the block and exit
+//       if (lastCheckedBlock === 0) {
+//         lastCheckedBlock = currentBlock;
+//         return;
+//       }
+
+//       // Only check if new blocks have passed
+//       if (currentBlock > lastCheckedBlock) {
+//         const filter = contract.filters.TicketsClaim();
+//         // Look for events between the last block we checked and now
+//         const logs = await contract.queryFilter(filter, lastCheckedBlock + 1, currentBlock);
+
+//         if (logs.length > 0) {
+//           console.log(`Detected ${logs.length} new claim events!`);
+          
+//           // Check if any of these events belong to the CURRENTLY viewed lottery
+//           const hasRelevantEvent = logs.some(log => {
+//             const evtLotteryId = Number(log.args?.lotteryId ?? log.args?.[2]);
+//             return evtLotteryId === viewingId;
+//           });
+
+//           if (hasRelevantEvent) {
+//             fetchLotteryById(viewingId);
+//           }
+//         }
+//         lastCheckedBlock = currentBlock;
+//       }
+//     } catch (err) {
+//       console.warn("Polling error (ignorable):", err.message);
+//     }
+//   };
+
+//   // 2. Set up the interval (every 15 seconds)
+//   const interval = setInterval(pollForClaims, 15000);
+  
+//   // Run once immediately
+//   pollForClaims();
+
+//   return () => {
+//     clearInterval(interval);
+//     console.log("Cleaned up TicketsClaim poller");
+//   };
+// }, [contract, viewingId, fetchLotteryById]);
 
   const goToLottery = (id) => {
     if (id >= 1 && id <= currentLotteryId) {
@@ -1694,14 +1731,14 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       modalSubtitle: `Lottery #${viewingId} — winning tickets per bracket`,
       modalContent: <TotalWinnersModal />,
     },
-    {
-      icon:         "🎟️",
-      label:        "Tickets Claimed",
-      value:        claimedTickets,
-      modalTitle:   "🎟️ Claimed Tickets",
-      modalSubtitle: `${claimEvents.length} claim transactions`,
-      modalContent: <TicketsClaimedModal />,
-    },
+    // {
+    //   icon:         "🎟️",
+    //   label:        "Tickets Claimed",
+    //   value:        claimedTickets,
+    //   modalTitle:   "🎟️ Claimed Tickets",
+    //   modalSubtitle: `${claimEvents.length} claim transactions`,
+    //   modalContent: <TicketsClaimedModal />,
+    // },
     {
       icon:         "💰",
       label:        "Prize Pool",
@@ -1710,22 +1747,22 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       modalSubtitle: "Reward distribution across 6 brackets",
       modalContent: <PrizePoolModal />,
     },
-    {
-      icon:         "✅",
-      label:        "Claimed",
-      value:        `${formatLuck(claimedRewards ?? 0n)} Luck`,
-      modalTitle:   "✅ Claimed Rewards",
-      modalSubtitle: "Sorted by total claimed (highest first)",
-      modalContent: <ClaimedModal />,
-    },
-    {
-      icon:         "⏳",
-      label:        "Unclaimed",
-      value:        `${formatLuck((totalRewards ?? 0n) - (claimedRewards ?? 0n))} Luck`,
-      modalTitle:   "⏳ Unclaimed Rewards",
-      modalSubtitle: "Per-bracket remaining balances",
-      modalContent: <UnclaimedModal />,
-    },
+    // {
+    //   icon:         "✅",
+    //   label:        "Claimed",
+    //   value:        `${formatLuck(claimedRewards ?? 0n)} Luck`,
+    //   modalTitle:   "✅ Claimed Rewards",
+    //   modalSubtitle: "Sorted by total claimed (highest first)",
+    //   modalContent: <ClaimedModal />,
+    // },
+    // {
+    //   icon:         "⏳",
+    //   label:        "Unclaimed",
+    //   value:        `${formatLuck((totalRewards ?? 0n) - (claimedRewards ?? 0n))} Luck`,
+    //   modalTitle:   "⏳ Unclaimed Rewards",
+    //   modalSubtitle: "Per-bracket remaining balances",
+    //   modalContent: <UnclaimedModal />,
+    // },
     {
       icon:         "🏦",
       label:        "Treasury",
@@ -1742,14 +1779,14 @@ export default function Admin({ contract, randomGenerator, vrfMock }) {
       modalSubtitle: "All ticket sale revenue",
       modalContent: <TotalCollectedModal />,
     },
-    {
-      icon:         "👥",
-      label:        "Unique Winners",
-      value:        uniqueWinners,
-      modalTitle:   "👥 Unique Winner Wallets",
-      modalSubtitle: "Each address that won at least once",
-      modalContent: <UniqueWinnersModal />,
-    },
+    // {
+    //   icon:         "👥",
+    //   label:        "Unique Winners",
+    //   value:        uniqueWinners,
+    //   modalTitle:   "👥 Unique Winner Wallets",
+    //   modalSubtitle: "Each address that won at least once",
+    //   modalContent: <UniqueWinnersModal />,
+    // },
   ];
 
   return (

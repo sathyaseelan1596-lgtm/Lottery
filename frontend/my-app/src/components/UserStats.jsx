@@ -366,7 +366,7 @@ export default function UserStats({ contract, account, lotteryId }) {
               icon: "💰",
               label: "My Reward",
               value: hasDrawn
-                ? `${ethers.formatEther(userReward)} Luck`
+                ? `${ethers.formatUnits(userReward, 6)} Luck`
                 : "--",
               color: userReward > 0n ? "#00e676" : "#ffb74d",
             },
@@ -374,7 +374,7 @@ export default function UserStats({ contract, account, lotteryId }) {
               icon: "🏦",
               label: "Total Prize Pool",
               value: hasDrawn
-                ? `${ethers.formatEther(totalRewards)} Luck`
+                ? `${ethers.formatUnits(totalRewards, 6)} Luck`
                 : "--",
               color: "#ffcc80",
             },
@@ -385,7 +385,7 @@ export default function UserStats({ contract, account, lotteryId }) {
               variants={statCardVariants}
               whileHover={{
                 scale: 1.04,
-                border: "1px solid rgba(255,152,0,0.25)",
+                borderColor: "rgba(255,152,0,0.25)",
                 background: "rgba(255,255,255,0.05)",
               }}
               transition={{ duration: 0.2 }}
@@ -561,7 +561,9 @@ const styles = {
     width: "36px",
     height: "36px",
     background: "rgba(255,152,0,0.1)",
-    border: "1px solid rgba(255,152,0,0.3)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "rgba(255,152,0,0.3)",
     borderRadius: "8px",
     display: "inline-flex",
     alignItems: "center",
@@ -600,7 +602,9 @@ const styles = {
   },
   statCard: {
     background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "rgba(255,255,255,0.07)",
     borderRadius: "14px",
     padding: "16px",
     textAlign: "center",

@@ -66,6 +66,7 @@ export default function SwapUI({ onClose }) {
   const [estimatedOutput, setEstimatedOutput] = useState(null);
   const [loading, setLoading] = useState(false);
   const [txHash,  setTxHash]  = useState(null);
+  const [isMetadataLoaded, setIsMetadataLoaded] = useState(false);
 
   useEffect(() => {
     const detect = async () => {
@@ -90,47 +91,49 @@ export default function SwapUI({ onClose }) {
   }, []);
 
   const fetchPoolData = useCallback(async () => {
-    if (!window.ethereum) return;
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
+  if (!window.ethereum) return;
+  try {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
 
-      const [slot0data, t0, t1, fee] = await Promise.all([
-        pool.slot0(),
-        pool.token0(),
-        pool.token1(),
-        pool.fee(),
-      ]);
+    const slot0data = await pool.slot0();
+    const sqrtPriceX96 = slot0data[0];
 
+    if (!isMetadataLoaded) {
+      const t0 = await pool.token0();
+      const t1 = await pool.token1();
       setToken0(t0);
       setToken1(t1);
-      setPoolFee(Number(fee));
 
       const t0c = new ethers.Contract(t0, ERC20_ABI, provider);
       const t1c = new ethers.Contract(t1, ERC20_ABI, provider);
-      const [sym0, sym1, dec0, dec1] = await Promise.all([
+      
+      const [sym0, sym1, dec0, dec1, fee] = await Promise.all([
         t0c.symbol(),
         t1c.symbol(),
         t0c.decimals(),
         t1c.decimals(),
+        pool.fee()
       ]);
 
-      const d0 = Number(dec0);
-      const d1 = Number(dec1);
       setToken0Symbol(sym0);
       setToken1Symbol(sym1);
-      setToken0Decimals(d0);
-      setToken1Decimals(d1);
-
-      const sqrtPriceX96 = slot0data[0];
-      const p = sqrtPriceX96ToPrice(sqrtPriceX96, d0, d1);
-      setPrice(p);
-      setPriceInverse(p > 0 ? 1 / p : 0);
-
-    } catch (e) {
-      console.error("Pool fetch error:", e);
+      setToken0Decimals(Number(dec0));
+      setToken1Decimals(Number(dec1));
+      setPoolFee(Number(fee));
+      setIsMetadataLoaded(true);
     }
-  }, []);
+
+    if (token0Decimals && token1Decimals) {
+       const p = sqrtPriceX96ToPrice(sqrtPriceX96, token0Decimals, token1Decimals);
+       setPrice(p);
+       setPriceInverse(p > 0 ? 1 / p : 0);
+    }
+
+  } catch (e) {
+    console.warn("RPC Syncing..."); 
+  }
+}, [isMetadataLoaded, token0Decimals, token1Decimals]);
 
   useEffect(() => {
     fetchPoolData();

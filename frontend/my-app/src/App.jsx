@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { useContract } from "./useContract";
-import Admin from "./components/Admin";
-import SwapUI from "./components/BuyToken";
-import VaultUI from "./components/VaultUI";
+const Admin = React.lazy(() => import("./components/Admin"));
+const SwapUI = React.lazy(() => import("./components/BuyToken"));
+const VaultUI = React.lazy(() => import("./components/VaultUI"));
 import LotteryCarousel from "./components/Lottery";
 import "./App.css";
 import "./components/Lottery.css";
@@ -125,25 +125,27 @@ export default function App() {
               </div>
             )}
 
+            <React.Suspense fallback={<div className="loader">Loading...</div>}>
             {tokenMethod === 'swap' && (
               <SwapUI onClose={() => setTokenMethod(null)} />
             )}
 
             {tokenMethod === 'vault' && (
               <VaultUI account={account} onClose={() => setTokenMethod(null)} />
-            )}
+            )}</React.Suspense>
           </div>
         </div>
       )}
 
       {/* ADMIN SECTION */}
       {account && isAdmin && (
+        <React.Suspense fallback={<div className="loader">Loading...</div>}>
         <section className="admin-section">
           <div className="admin-box">
             <h2 className="admin-title">Admin Panel</h2>
             <Admin contract={contract} randomGenerator={rngContract} vrfMock={vrfMockContract} />
           </div>
-        </section>
+        </section></React.Suspense>
       )}
 
       <LotteryCarousel contract={contract} account={account} />
@@ -176,7 +178,7 @@ export default function App() {
         )}
       </section>
 
-      <section className="how-section">
+      {/* <section className="how-section">
         <h2 className="section-title">How It Works</h2>
         <div className="steps-row">
           {[
@@ -193,7 +195,7 @@ export default function App() {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       <section className="prize-section">
         <h2 className="section-title">Prize Breakdown</h2>

@@ -64,7 +64,7 @@ export default function MyTickets({ contract, account }) {
     try {
       toast.loading("Getting current lottery...", { id: "current" });
       const id = await contract.viewCurrentLotteryId();
-      setLotteryId(Number(id));
+      setLotteryId(String(id)); // Store as string for keys
       toast.dismiss("current");
       toast.success(`Lottery #${Number(id)} loaded`);
     } catch (err) {
@@ -74,8 +74,7 @@ export default function MyTickets({ contract, account }) {
     }
   };
 
-  const hasDrawn = finalNumber && finalNumber !== 0;
-  const isClaimable = lotteryStatus === 3;
+  const hasDrawn = finalNumber !== null && finalNumber !== 0;
   const winningDigits = hasDrawn
     ? String(finalNumber % 1000000).padStart(6, "0").split("")
     : null;
@@ -86,276 +85,105 @@ export default function MyTickets({ contract, account }) {
 
   const totalClaimed = statuses.filter(Boolean).length;
 
+  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08, delayChildren: 0.1 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.38, ease: "easeOut" },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
   };
 
   const ticketVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: (i) => ({
-      opacity: 1,
-      x: 0,
-      transition: { delay: i * 0.07, duration: 0.35, ease: "easeOut" },
-    }),
+    hidden: { opacity: 0, x: -15 },
+    visible: { opacity: 1, x: 0 },
   };
 
   return (
     <>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: "#1a1a2e",
-            color: "#fff",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "12px",
-            fontSize: "14px",
-            fontWeight: "600",
-          },
-          success: {
-            iconTheme: { primary: "#ff9800", secondary: "#000" },
-          },
-          error: {
-            iconTheme: { primary: "#ff5252", secondary: "#fff" },
-          },
-        }}
-      />
+      <Toaster position="top-right" />
 
       <motion.div
         style={styles.card}
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <motion.div
-          style={styles.cardHeader}
-          initial={{ opacity: 0, x: -15 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15 }}
-        >
+        <div style={styles.cardHeader}>
           <div style={styles.cardHeaderLeft}>
-            <motion.span
-              style={styles.cardIcon}
-              animate={{ rotate: [0, -10, 10, -8, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            >
-              📋
-            </motion.span>
+            <span style={styles.cardIcon}>📋</span>
             <h2 style={styles.cardTitle}>My Tickets</h2>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.p
-          style={styles.cardDesc}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          Enter a lottery round ID to view your tickets and match results.
-        </motion.p>
+        <p style={styles.cardDesc}>Enter a lottery round ID to view your results.</p>
 
-        <motion.div
-          style={styles.inputRow}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-        >
+        <div style={styles.inputRow}>
           <input
-            placeholder="Enter Lottery ID..."
+            placeholder="Lottery ID..."
             value={lotteryId}
             onChange={(e) => setLotteryId(e.target.value)}
             style={styles.input}
-            onFocus={(e) => {
-              e.target.style.borderColor = "rgba(255,152,0,0.4)";
-              e.target.style.boxShadow = "0 0 0 3px rgba(255,152,0,0.08)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "rgba(255,255,255,0.1)";
-              e.target.style.boxShadow = "none";
-            }}
           />
-          <motion.button
-            onClick={useCurrentLottery}
-            style={styles.currentBtn}
-            whileHover={{
-              scale: 1.04,
-              background: "rgba(255,255,255,0.1)",
-            }}
-            whileTap={{ scale: 0.96 }}
-          >
-            Current
-          </motion.button>
-        </motion.div>
+          <button onClick={useCurrentLottery} style={styles.currentBtn}>Current</button>
+        </div>
 
-        <motion.button
+        <button
           onClick={fetchTickets}
           disabled={loading}
-          style={{
-            ...styles.viewBtn,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-          whileHover={!loading ? {
-            scale: 1.02,
-            boxShadow: "0 6px 28px rgba(255,152,0,0.35)",
-          } : {}}
-          whileTap={!loading ? { scale: 0.97 } : {}}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          style={{ ...styles.viewBtn, opacity: loading ? 0.6 : 1 }}
         >
-          {loading ? (
-            <motion.span
-              animate={{ opacity: [1, 0.5, 1] }}
-              transition={{ repeat: Infinity, duration: 1 }}
-            >
-              ⏳ Loading...
-            </motion.span>
-          ) : (
-            "📋 View My Tickets"
-          )}
-        </motion.button>
+          {loading ? "Loading..." : "📋 View My Tickets"}
+        </button>
       </motion.div>
 
       <AnimatePresence>
         {showModal && (
           <motion.div
+            key="modal-overlay"
             style={styles.overlay}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.28 }}
             onClick={() => setShowModal(false)}
           >
             <motion.div
+              key="modal-content"
               style={styles.modal}
-              initial={{ opacity: 0, scale: 0.88, y: 40 }}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.88, y: 40 }}
-              transition={{ duration: 0.38, ease: "easeOut" }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <motion.div
-                style={styles.modalHeader}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <h3 style={styles.modalTitle}>📋 My Tickets</h3>
-                <motion.button
-                  onClick={() => setShowModal(false)}
-                  style={styles.closeBtn}
-                  whileHover={{
-                    scale: 1.1,
-                    background: "rgba(255,255,255,0.1)",
-                  }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  ✕
-                </motion.button>
-              </motion.div>
+              <div style={styles.modalHeader}>
+                <h3 style={styles.modalTitle}>Round #{lotteryId}</h3>
+                <button onClick={() => setShowModal(false)} style={styles.closeBtn}>✕</button>
+              </div>
 
-              <motion.div
-                style={styles.badgeRow}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-              >
-                <span style={styles.badge}>Round #{lotteryId}</span>
-                <span style={styles.badge}>
-                  {tickets.length} Ticket{tickets.length !== 1 ? "s" : ""}
-                </span>
-                <AnimatePresence>
+              <div style={styles.badgeRow}>
+                <AnimatePresence mode="popLayout">
                   {totalWon > 0 && (
-                    <motion.span
-                      style={styles.badgeGreen}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                    >
-                      🏆 {totalWon} Winner{totalWon !== 1 ? "s" : ""}
+                    <motion.span key="win-badge" style={styles.badgeGreen} initial={{ opacity: 0, s: 0.5 }} animate={{ opacity: 1, s: 1 }}>
+                      🏆 {totalWon} Won
                     </motion.span>
                   )}
                   {totalClaimed > 0 && (
-                    <motion.span
-                      style={styles.badgeOrange}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                    >
+                    <motion.span key="claim-badge" style={styles.badgeOrange} initial={{ opacity: 0, s: 0.5 }} animate={{ opacity: 1, s: 1 }}>
                       ✅ {totalClaimed} Claimed
                     </motion.span>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
 
-              <motion.div
-                style={styles.winningBox}
-                initial={{ opacity: 0, scale: 0.93 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
+              <div style={styles.winningBox}>
                 <div style={styles.winningLabel}>🎯 Winning Number</div>
                 <div style={styles.digitRow}>
-                  {winningDigits
-                    ? winningDigits.map((d, i) => (
-                        <motion.span
-                          key={i}
-                          style={styles.digitBox}
-                          initial={{ opacity: 0, rotateY: 90 }}
-                          animate={{ opacity: 1, rotateY: 0 }}
-                          transition={{
-                            delay: 0.25 + i * 0.09,
-                            type: "spring",
-                            stiffness: 220,
-                            damping: 16,
-                          }}
-                        >
-                          {d}
-                        </motion.span>
-                      ))
-                    : [..."------"].map((d, i) => (
-                        <motion.span
-                          key={i}
-                          style={{
-                            ...styles.digitBox,
-                            color: "#444",
-                            borderColor: "rgba(255,255,255,0.06)",
-                          }}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.25 + i * 0.06 }}
-                        >
-                          {d}
-                        </motion.span>
-                      ))}
-                </div>
-                <AnimatePresence>
-                  {!hasDrawn && (
-                    <motion.div
-                      style={styles.noDrawText}
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
+                  {(winningDigits || [..."------"]).map((d, i) => (
+                    <motion.span
+                      key={`win-digit-${lotteryId}-${i}`}
+                      style={{ ...styles.digitBox, opacity: hasDrawn ? 1 : 0.3 }}
                     >
-                      Draw not completed yet
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                      {d}
+                    </motion.span>
+                  ))}
+                </div>
+              </div>
 
               <motion.div
                 style={styles.ticketList}
@@ -364,174 +192,51 @@ export default function MyTickets({ contract, account }) {
                 animate="visible"
               >
                 {tickets.length === 0 ? (
-                  <motion.div
-                    style={styles.emptyState}
-                    variants={itemVariants}
-                  >
-                    <motion.span
-                      style={styles.emptyIcon}
-                      animate={{ y: [0, -8, 0] }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 2,
-                        ease: "easeInOut",
-                      }}
-                    >
-                      🎟️
-                    </motion.span>
-                    <p style={styles.emptyText}>
-                      No tickets found for this round
-                    </p>
-                  </motion.div>
+                  <div style={styles.emptyState}>No tickets found</div>
                 ) : (
                   tickets.map((t, i) => {
                     const num = Number(t);
-                    const match = hasDrawn
-                      ? getMatchDigits(num, finalNumber)
-                      : 0;
+                    const match = hasDrawn ? getMatchDigits(num, finalNumber) : 0;
                     const isWin = match > 0;
-                    const claimed = statuses[i];
-
-                    const ticketDigits = String(num % 1000000)
-                      .padStart(6, "0")
-                      .split("");
+                    const tDigits = String(num % 1000000).padStart(6, "0").split("");
 
                     return (
                       <motion.div
-                        key={i}
-                        custom={i}
+                        key={`ticket-${lotteryId || 'none'}-${i}`}
                         variants={ticketVariants}
                         style={{
                           ...styles.ticketCard,
-                          borderColor: isWin
-                            ? "rgba(255,152,0,0.3)"
-                            : "rgba(255,255,255,0.05)",
+                          borderColor: isWin ? "rgba(255,152,0,0.3)" : "rgba(255,255,255,0.05)"
                         }}
-                        whileHover={{
-                          scale: 1.015,
-                          borderColor: isWin
-                            ? "rgba(255,152,0,0.5)"
-                            : "rgba(255,255,255,0.12)",
-                        }}
-                        transition={{ duration: 0.18 }}
                       >
-                        {/* Ticket number as digit boxes */}
                         <div style={styles.ticketTop}>
                           <div style={styles.ticketDigitRow}>
-                            {ticketDigits.map((d, di) => {
-                              const isMatch =
-                                hasDrawn &&
-                                winningDigits &&
-                                di >= 6 - match &&
-                                d === winningDigits[di];
+                            {tDigits.map((d, di) => {
+                              const isMatch = hasDrawn && di >= (6 - match);
                               return (
-                                <motion.span
-                                  key={di}
+                                <span
+                                  key={`digit-${lotteryId}-${i}-${di}`}
                                   style={{
                                     ...styles.ticketDigit,
-                                    background: isMatch
-                                      ? "rgba(255,152,0,0.2)"
-                                      : "rgba(255,255,255,0.04)",
-                                    borderColor: isMatch
-                                      ? "rgba(255,152,0,0.5)"
-                                      : "rgba(255,255,255,0.08)",
-                                    color: isMatch ? "#ffb74d" : "#888",
-                                  }}
-                                  animate={
-                                    isMatch
-                                      ? { scale: [1, 1.12, 1] }
-                                      : {}
-                                  }
-                                  transition={{
-                                    delay: di * 0.06,
-                                    duration: 0.4,
-                                    repeat: isMatch ? Infinity : 0,
-                                    repeatDelay: 2,
+                                    color: isMatch ? "#ffb74d" : "#555",
+                                    borderColor: isMatch ? "#ffb74d" : "rgba(255,255,255,0.1)",
+                                    background: isMatch ? "rgba(255,152,0,0.1)" : "transparent"
                                   }}
                                 >
                                   {d}
-                                </motion.span>
+                                </span>
                               );
                             })}
                           </div>
-
-                          <AnimatePresence mode="wait">
-                            {claimed ? (
-                              <motion.span
-                                key="claimed"
-                                style={styles.claimedBadge}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                              >
-                                ✅ Claimed
-                              </motion.span>
-                            ) : isWin ? (
-                              <motion.span
-                                key="win"
-                                style={styles.winBadge}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                              >
-                                💰 Unclaimed
-                              </motion.span>
-                            ) : (
-                              <motion.span
-                                key="lose"
-                                style={styles.loseBadge}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                              >
-                                ❌ No Match
-                              </motion.span>
-                            )}
-                          </AnimatePresence>
+                          <span style={isWin ? styles.winBadge : styles.loseBadge}>
+                            {statuses[i] ? "✅ Claimed" : isWin ? "💰 Win" : "❌ No Match"}
+                          </span>
                         </div>
-
-                        <AnimatePresence>
-                          {hasDrawn && (
-                            <motion.div
-                              style={styles.ticketBottom}
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.25 }}
-                            >
-                              {isWin ? (
-                                <span style={styles.matchText}>
-                                  🏆 {match} digit{match !== 1 ? "s" : ""}{" "}
-                                  matched
-                                </span>
-                              ) : (
-                                <span style={styles.noMatchText}>
-                                  Better luck next time
-                                </span>
-                              )}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
                       </motion.div>
                     );
                   })
                 )}
               </motion.div>
-
-              <motion.button
-                onClick={() => setShowModal(false)}
-                style={styles.cancelBtn}
-                whileHover={{
-                  background: "rgba(255,255,255,0.08)",
-                  borderColor: "rgba(255,255,255,0.15)",
-                }}
-                whileTap={{ scale: 0.97 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.45 }}
-              >
-                Close
-              </motion.button>
             </motion.div>
           </motion.div>
         )}
@@ -541,310 +246,31 @@ export default function MyTickets({ contract, account }) {
 }
 
 const styles = {
-  // CARD
-  card: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "16px",
-    padding: "24px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "14px",
-  },
-  cardHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardHeaderLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  cardIcon: {
-    fontSize: "24px",
-    display: "inline-block",
-  },
-  cardTitle: {
-    fontSize: "20px",
-    fontWeight: "800",
-    color: "#ffcc80",
-    margin: 0,
-  },
-  cardDesc: {
-    fontSize: "14px",
-    color: "#999",
-    margin: 0,
-    lineHeight: "1.5",
-  },
-
-  inputRow: {
-    display: "flex",
-    gap: "10px",
-  },
-  input: {
-    flex: 1,
-    padding: "12px 16px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "10px",
-    color: "#fff",
-    fontSize: "14px",
-    outline: "none",
-    transition: "border-color 0.2s, box-shadow 0.2s",
-  },
-  currentBtn: {
-    padding: "12px 16px",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "10px",
-    color: "#ccc",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
-
-  viewBtn: {
-    width: "100%",
-    padding: "13px",
-    background: "linear-gradient(135deg, #ff9800, #f57c00)",
-    border: "none",
-    borderRadius: "12px",
-    color: "#000",
-    fontWeight: "800",
-    fontSize: "15px",
-    cursor: "pointer",
-  },
-
-  overlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background: "rgba(0,0,0,0.75)",
-    backdropFilter: "blur(4px)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 9999,
-  },
-
-  modal: {
-    background: "#12121f",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "20px",
-    padding: "28px",
-    width: "100%",
-    maxWidth: "480px",
-    maxHeight: "85vh",
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: "20px",
-    fontWeight: "800",
-    color: "#ffcc80",
-    margin: 0,
-  },
-  closeBtn: {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
-    color: "#aaa",
-    cursor: "pointer",
-    fontSize: "14px",
-    padding: "4px 10px",
-  },
-
-  badgeRow: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-  },
-  badge: {
-    fontSize: "12px",
-    color: "#888",
-    background: "rgba(255,255,255,0.05)",
-    padding: "4px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(255,255,255,0.08)",
-  },
-  badgeGreen: {
-    fontSize: "12px",
-    color: "#00e676",
-    background: "rgba(0,200,100,0.1)",
-    padding: "4px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(0,200,100,0.3)",
-  },
-  badgeOrange: {
-    fontSize: "12px",
-    color: "#ffb74d",
-    background: "rgba(255,152,0,0.1)",
-    padding: "4px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(255,152,0,0.3)",
-  },
-
-  winningBox: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: "12px",
-    padding: "16px",
-    textAlign: "center",
-  },
-  winningLabel: {
-    fontSize: "12px",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: "1px",
-    marginBottom: "10px",
-  },
-  digitRow: {
-    display: "flex",
-    gap: "6px",
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
-  digitBox: {
-    width: "36px",
-    height: "36px",
-    background: "rgba(255,152,0,0.1)",
-    border: "1px solid rgba(255,152,0,0.3)",
-    borderRadius: "8px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "18px",
-    fontWeight: "800",
-    color: "#ffb74d",
-  },
-  noDrawText: {
-    marginTop: "10px",
-    fontSize: "12px",
-    color: "#555",
-  },
-
-  ticketList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    maxHeight: "320px",
-    overflowY: "auto",
-  },
-
-  emptyState: {
-    textAlign: "center",
-    padding: "40px 20px",
-  },
-  emptyIcon: {
-    fontSize: "40px",
-    display: "block",
-    marginBottom: "12px",
-  },
-  emptyText: {
-    color: "#555",
-    fontSize: "14px",
-    margin: 0,
-  },
-
-  ticketCard: {
-    background: "rgba(255,255,255,0.03)",
-    border: "1px solid",
-    borderRadius: "12px",
-    padding: "14px 16px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  ticketTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
-  ticketDigitRow: {
-    display: "flex",
-    gap: "4px",
-  },
-  ticketDigit: {
-    width: "28px",
-    height: "28px",
-    borderRadius: "6px",
-    border: "1px solid",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    fontWeight: "700",
-  },
-
-  claimedBadge: {
-    fontSize: "11px",
-    color: "#00e676",
-    background: "rgba(0,200,100,0.1)",
-    padding: "3px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(0,200,100,0.3)",
-    fontWeight: "700",
-    whiteSpace: "nowrap",
-  },
-  winBadge: {
-    fontSize: "11px",
-    color: "#ffb74d",
-    background: "rgba(255,152,0,0.1)",
-    padding: "3px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(255,152,0,0.3)",
-    fontWeight: "700",
-    whiteSpace: "nowrap",
-  },
-  loseBadge: {
-    fontSize: "11px",
-    color: "#ef5350",
-    background: "rgba(239,83,80,0.1)",
-    padding: "3px 10px",
-    borderRadius: "20px",
-    border: "1px solid rgba(239,83,80,0.3)",
-    fontWeight: "700",
-    whiteSpace: "nowrap",
-  },
-
-  ticketBottom: {
-    paddingTop: "4px",
-    borderTop: "1px solid rgba(255,255,255,0.05)",
-    overflow: "hidden",
-  },
-  matchText: {
-    fontSize: "12px",
-    color: "#ffb74d",
-    fontWeight: "600",
-  },
-  noMatchText: {
-    fontSize: "12px",
-    color: "#555",
-  },
-
-  cancelBtn: {
-    width: "100%",
-    padding: "12px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "12px",
-    color: "#888",
-    fontWeight: "600",
-    fontSize: "14px",
-    cursor: "pointer",
-  },
+  card: { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "16px", padding: "24px", display: "flex", flexDirection: "column", gap: "12px" },
+  cardHeader: { display: "flex", alignItems: "center", gap: "10px" },
+  cardTitle: { fontSize: "18px", fontWeight: "800", color: "#ffcc80", margin: 0 },
+  cardDesc: { fontSize: "13px", color: "#888", margin: 0 },
+  inputRow: { display: "flex", gap: "8px" },
+  input: { flex: 1, padding: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff" },
+  currentBtn: { padding: "0 12px", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "8px", color: "#ccc", cursor: "pointer" },
+  viewBtn: { width: "100%", padding: "12px", background: "linear-gradient(135deg, #ff9800, #f57c00)", border: "none", borderRadius: "10px", color: "#000", fontWeight: "800", cursor: "pointer" },
+  overlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
+  modal: { background: "#12121f", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "20px", padding: "24px", width: "90%", maxWidth: "440px", maxHeight: "80vh", overflowY: "auto" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" },
+  modalTitle: { margin: 0, color: "#ffcc80" },
+  closeBtn: { background: "none", border: "none", color: "#fff", fontSize: "18px", cursor: "pointer" },
+  badgeRow: { display: "flex", gap: "8px", marginBottom: "16px" },
+  badgeGreen: { fontSize: "11px", color: "#00e676", background: "rgba(0,200,100,0.1)", padding: "4px 10px", borderRadius: "12px" },
+  badgeOrange: { fontSize: "11px", color: "#ffb74d", background: "rgba(255,152,0,0.1)", padding: "4px 10px", borderRadius: "12px" },
+  winningBox: { background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "12px", textAlign: "center", marginBottom: "16px" },
+  digitRow: { display: "flex", gap: "6px", justifyContent: "center" },
+  digitBox: { width: "32px", height: "32px", background: "rgba(255,152,0,0.1)", border: "1px solid rgba(255,152,0,0.3)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", color: "#ffb74d" },
+  ticketList: { display: "flex", flexDirection: "column", gap: "8px" },
+  ticketCard: { background: "rgba(255,255,255,0.02)", border: "1px solid", padding: "12px", borderRadius: "10px" },
+  ticketTop: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  ticketDigitRow: { display: "flex", gap: "4px" },
+  ticketDigit: { width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "700", border: "1px solid", borderRadius: "4px" },
+  winBadge: { fontSize: "10px", color: "#ffb74d", fontWeight: "bold" },
+  loseBadge: { fontSize: "10px", color: "#444" },
+  emptyState: { textAlign: "center", color: "#555", padding: "20px" }
 };
